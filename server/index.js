@@ -1,6 +1,6 @@
 import express from 'express';
 import cors    from 'cors';
-import { getAll, saveProfile, upsertDSA, upsertSD, upsertJava, resetAll, upsertActivity, getActivity } from './db.js';
+import { db, getAll, saveProfile, upsertDSA, upsertSD, upsertJava, resetAll, upsertActivity, getActivity, insertEvent, getEventsForDate, deleteEventsForDate } from './db.js';
 
 const app  = express();
 const PORT = 3001;
@@ -92,6 +92,19 @@ app.get('/api/activity', (req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /api/events?date=YYYY-MM-DD
+app.get('/api/events', (req, res) => {
+  const { date } = req.query;
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return res.status(400).json({ error: 'date query param required (YYYY-MM-DD)' });
+  try {
+    const events = getEventsForDate(date);
+    res.json({ date, events });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/log
 app.post('/api/log', (req, res) => {
   const { type, topic, difficulty } = req.body;
@@ -141,8 +154,107 @@ app.post('/api/log', (req, res) => {
     const { profile: finalProfile, earned } = checkAchievements(profile, dsa);
     saveProfile(finalProfile);
     upsertActivity(todayStr(), profile.xp - originalXp);
+    const xpForEvent = type === 'dsa' ? XP_EARN[difficulty] : XP_EARN[type];
+    insertEvent(todayStr(), type, topic, difficulty ?? null, xpForEvent);
 
     res.json({ profile: finalProfile, dsa, sd, java, msg, newAchievements: earned });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/reset-day
+app.post('/api/reset-day', (req, res) => {
+  const { date } = req.body;
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return res.status(400).json({ error: 'date required (YYYY-MM-DD)' });
+
+  try {
+    const events = getEventsForDate(date);
+    if (events.length === 0)
+      return res.status(404).json({ error: 'No events found for that date' });
+
+    const dayLog = db.prepare('SELECT xp FROM activity_log WHERE date = ?').get(date);
+    const dayXp  = dayLog ? dayLog.xp : 0;
+
+    const resetTx = db.transaction(() => {
+      let { profile, dsa, sd, java } = getAll();
+
+      // 1. Deduct the day's XP (includes streak bonus)
+      profile = { ...profile, xp: Math.max(0, profile.xp - dayXp) };
+
+      // 2. Reverse DSA events: decrement topic counts and profile difficulty counters
+      for (const ev of events) {
+        if (ev.type !== 'dsa') continue;
+        const diff = ev.difficulty; // 'easy' | 'medium' | 'hard'
+        const key  = diff[0];      // 'e' | 'm' | 'h'
+        const prev = dsa[ev.topic] || { e: 0, m: 0, h: 0 };
+        dsa = { ...dsa, [ev.topic]: { ...prev, [key]: Math.max(0, (prev[key] || 0) - 1) } };
+        profile = { ...profile, [diff]: Math.max(0, (profile[diff] || 0) - 1) };
+      }
+
+      // 3. Reverse SD events (unique topics only)
+      const sdTopics = [...new Set(events.filter(e => e.type === 'sd').map(e => e.topic))];
+      for (const topic of sdTopics) {
+        sd = { ...sd, [topic]: false };
+        profile = { ...profile, sdDone: Math.max(0, profile.sdDone - 1) };
+      }
+
+      // 4. Reverse Java events (unique topics only)
+      const javaTopics = [...new Set(events.filter(e => e.type === 'java').map(e => e.topic))];
+      for (const topic of javaTopics) {
+        java = { ...java, [topic]: false };
+        profile = { ...profile, javaDone: Math.max(0, profile.javaDone - 1) };
+      }
+
+      // 5. Re-evaluate achievements AFTER topic state is updated
+      const updatedAchs = (profile.achievements || []).filter(id => {
+        const ach = ACHIEVEMENTS.find(a => a.id === id);
+        if (!ach) return false;
+        if (ach.cond(profile, dsa)) return true;
+        // Achievement no longer met — revoke and subtract its XP bonus
+        profile = { ...profile, xp: Math.max(0, profile.xp - ach.xpBonus) };
+        return false;
+      });
+      profile = { ...profile, achievements: updatedAchs };
+
+      // 6. Delete activity_log entry for that date
+      db.prepare('DELETE FROM activity_log WHERE date = ?').run(date);
+
+      // 7. Recompute streak from remaining activity_log
+      const remaining = db.prepare(
+        'SELECT date FROM activity_log WHERE xp > 0 ORDER BY date DESC'
+      ).all();
+      if (remaining.length === 0) {
+        profile = { ...profile, streak: 0, lastDate: null };
+      } else {
+        profile = { ...profile, lastDate: remaining[0].date };
+        let streak = 1;
+        for (let i = 1; i < remaining.length; i++) {
+          const prev = new Date(remaining[i - 1].date + 'T12:00:00');
+          const cur  = new Date(remaining[i].date     + 'T12:00:00');
+          const diffDays = Math.round((prev - cur) / 86400000);
+          if (diffDays === 1) streak++;
+          else break;
+        }
+        profile = { ...profile, streak };
+      }
+
+      // 8. Delete activity_events for that date
+      deleteEventsForDate(date);
+
+      // 9. Persist all changes
+      saveProfile(profile);
+      for (const topic of Object.keys(dsa)) {
+        const t = dsa[topic];
+        upsertDSA(topic, t.e, t.m, t.h);
+      }
+      for (const topic of sdTopics)   upsertSD(topic, false);
+      for (const topic of javaTopics) upsertJava(topic, false);
+    });
+
+    resetTx();
+    res.json(getAll());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
