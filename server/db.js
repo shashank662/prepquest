@@ -45,7 +45,18 @@ db.exec(`
     date TEXT PRIMARY KEY,
     xp   INTEGER DEFAULT 0
   );
+
+  CREATE TABLE IF NOT EXISTS activity_events (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    date       TEXT NOT NULL,
+    type       TEXT NOT NULL,
+    topic      TEXT NOT NULL,
+    difficulty TEXT,
+    xp_earned  INTEGER NOT NULL
+  );
 `);
+
+export { db };
 
 export function getAll() {
   const row = db.prepare('SELECT * FROM profile WHERE id = 1').get();
@@ -149,4 +160,22 @@ export function resetAll() {
   db.prepare('DELETE FROM sd_topics').run();
   db.prepare('DELETE FROM java_topics').run();
   db.prepare('DELETE FROM activity_log').run();
+  db.prepare('DELETE FROM activity_events').run();
+}
+
+export function insertEvent(date, type, topic, difficulty, xp) {
+  if (typeof xp !== 'number' || !isFinite(xp)) return;
+  db.prepare(
+    'INSERT INTO activity_events (date, type, topic, difficulty, xp_earned) VALUES (?, ?, ?, ?, ?)'
+  ).run(date, type, topic, difficulty ?? null, xp);
+}
+
+export function getEventsForDate(date) {
+  return db.prepare(
+    'SELECT * FROM activity_events WHERE date = ? ORDER BY id ASC'
+  ).all(date);
+}
+
+export function deleteEventsForDate(date) {
+  db.prepare('DELETE FROM activity_events WHERE date = ?').run(date);
 }
