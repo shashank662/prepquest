@@ -40,6 +40,11 @@ db.exec(`
     topic TEXT    PRIMARY KEY,
     done  INTEGER DEFAULT 0
   );
+
+  CREATE TABLE IF NOT EXISTS activity_log (
+    date TEXT PRIMARY KEY,
+    xp   INTEGER DEFAULT 0
+  );
 `);
 
 export function getAll() {
@@ -104,6 +109,33 @@ export function upsertJava(topic, done) {
   `).run(topic, done ? 1 : 0);
 }
 
+export function upsertActivity(date, xp) {
+  db.prepare(`
+    INSERT INTO activity_log (date, xp) VALUES (?, ?)
+    ON CONFLICT(date) DO UPDATE SET xp = xp + excluded.xp
+  `).run(date, xp);
+}
+
+export function getActivity(days) {
+  const start = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - days + 1);
+    return d.toISOString().slice(0, 10);
+  })();
+  const rows = db.prepare(
+    'SELECT date, xp FROM activity_log WHERE date >= ? ORDER BY date ASC'
+  ).all(start);
+  const map = Object.fromEntries(rows.map(r => [r.date, r.xp]));
+  const result = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const date = d.toISOString().slice(0, 10);
+    result.push({ date, xp: map[date] ?? 0 });
+  }
+  return result;
+}
+
 export function resetAll() {
   db.prepare(`UPDATE profile SET xp=0, streak=0, last_date=NULL,
     easy=0, medium=0, hard=0, sd_done=0, java_done=0, achievements='[]'
@@ -111,4 +143,5 @@ export function resetAll() {
   db.prepare('DELETE FROM dsa_topics').run();
   db.prepare('DELETE FROM sd_topics').run();
   db.prepare('DELETE FROM java_topics').run();
+  db.prepare('DELETE FROM activity_log').run();
 }
