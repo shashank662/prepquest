@@ -140,7 +140,7 @@ app.post('/api/log', (req, res) => {
 
     const { profile: finalProfile, earned } = checkAchievements(profile, dsa);
     saveProfile(finalProfile);
-    upsertActivity(todayStr(), finalProfile.xp - originalXp);
+    upsertActivity(todayStr(), profile.xp - originalXp);
 
     res.json({ profile: finalProfile, dsa, sd, java, msg, newAchievements: earned });
   } catch (err) {

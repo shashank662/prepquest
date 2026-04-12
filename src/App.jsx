@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useId } from "react";
 
 const DSA_TOPICS = [
   "Arrays & Hashing", "Two Pointers", "Sliding Window", "Stack",
@@ -381,10 +381,17 @@ function ActivityGraph() {
   const wrapRef   = useRef(null);
   const customRef = useRef(null);
   const [wrapW,   setWrapW]         = useState(560);
+  const gradId    = useId();
 
-  // Read container width once on mount
+  // Track container width with ResizeObserver so chart redraws on resize
   useEffect(() => {
-    if (wrapRef.current) setWrapW(wrapRef.current.clientWidth || 560);
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setWrapW(entry.contentRect.width || 560);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   // Fetch activity data whenever days changes; bump chartKey to re-trigger animations
@@ -548,7 +555,7 @@ function ActivityGraph() {
 
         <svg key={chartKey} width={W} height={H} style={{ overflow: 'visible' }}>
           <defs>
-            <linearGradient id="xpAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="#3b82f6" stopOpacity="0.3" />
               <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
             </linearGradient>
@@ -576,7 +583,7 @@ function ActivityGraph() {
           )}
 
           {/* Area fill */}
-          {areaPath && <path d={areaPath} fill="url(#xpAreaGrad)" className="xp-area" />}
+          {areaPath && <path d={areaPath} fill={`url(#${gradId})`} className="xp-area" />}
 
           {/* Line */}
           {linePath && (
