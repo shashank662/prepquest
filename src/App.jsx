@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const DSA_TOPICS = [
   "Arrays & Hashing", "Two Pointers", "Sliding Window", "Stack",
@@ -337,6 +337,7 @@ function OverviewTab({ profile, dsa, sd, java, achSet }) {
   ];
   return (
     <div>
+      <ActivityGraph />
       <div style={S.card}>
         <div style={S.sectionLabel}>Category Progress</div>
         {cats.map(c => (
@@ -366,6 +367,281 @@ function OverviewTab({ profile, dsa, sd, java, achSet }) {
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ActivityGraph() {
+  const [days,        setDays]      = useState(7);
+  const [data,        setData]      = useState([]);
+  const [activePreset,setPreset]    = useState(7);   // 7 | 30 | null (custom)
+  const [customVal,   setCustomVal] = useState('');
+  const [hovered,     setHovered]   = useState(null);
+  const [chartKey,    setChartKey]  = useState(0);
+  const wrapRef   = useRef(null);
+  const customRef = useRef(null);
+  const [wrapW,   setWrapW]         = useState(560);
+
+  // Read container width once on mount
+  useEffect(() => {
+    if (wrapRef.current) setWrapW(wrapRef.current.clientWidth || 560);
+  }, []);
+
+  // Fetch activity data whenever days changes; bump chartKey to re-trigger animations
+  useEffect(() => {
+    fetch(`/api/activity?days=${days}`)
+      .then(r => r.json())
+      .then(json => { setData(json.data || []); setChartKey(k => k + 1); })
+      .catch(() => {});
+  }, [days]);
+
+  // Attach native DOM 'change' listener so spinner arrows apply immediately.
+  // React's onChange maps to the DOM 'input' event (fires on every keystroke).
+  // The native 'change' event fires on spinner clicks and on blur — both are fine here.
+  useEffect(() => {
+    const el = customRef.current;
+    if (!el) return;
+    function handleNativeChange() {
+      const n = Math.min(Math.max(parseInt(el.value, 10) || 0, 1), 365);
+      if (n) { setPreset(null); setDays(n); }
+    }
+    el.addEventListener('change', handleNativeChange);
+    return () => el.removeEventListener('change', handleNativeChange);
+  }, []);
+
+  function pickPreset(n) {
+    setPreset(n);
+    setCustomVal('');
+    setDays(n);
+  }
+
+  function submitCustom() {
+    const n = Math.min(Math.max(parseInt(customVal, 10) || 0, 1), 365);
+    if (n) { setPreset(null); setDays(n); }
+  }
+
+  // ── Chart geometry ──────────────────────────────────────────
+  const W   = wrapW;
+  const H   = 130;
+  const pad = { top: 14, right: 8, bottom: 20, left: 30 };
+  const iW  = W - pad.left - pad.right;
+  const iH  = H - pad.top  - pad.bottom;
+  const maxXP = Math.max(...data.map(d => d.xp), 40);
+  const step  = data.length > 1 ? iW / (data.length - 1) : iW;
+
+  const pts = data.map((d, i) => ({
+    x:       pad.left + i * step,
+    y:       pad.top  + iH - (d.xp / maxXP) * iH,
+    xp:      d.xp,
+    date:    d.date,
+    isToday: i === data.length - 1,
+    isEmpty: d.xp === 0,
+  }));
+
+  // Smooth cubic bezier path through all points
+  function smoothPath(ps) {
+    if (ps.length < 2) return '';
+    let d = `M ${ps[0].x} ${ps[0].y}`;
+    for (let i = 1; i < ps.length; i++) {
+      const mx = (ps[i - 1].x + ps[i].x) / 2;
+      d += ` C ${mx} ${ps[i-1].y}, ${mx} ${ps[i].y}, ${ps[i].x} ${ps[i].y}`;
+    }
+    return d;
+  }
+
+  const linePath = smoothPath(pts);
+  const areaPath = linePath
+    ? `${linePath} L${pts[pts.length-1].x},${pad.top+iH} L${pts[0].x},${pad.top+iH} Z`
+    : '';
+
+  // X-axis label for a given data point
+  function xLabel(d, i) {
+    if (i === data.length - 1) return 'Today';
+    if (days <= 7)  return new Date(d.date + 'T12:00:00').toLocaleDateString('en', { weekday: 'short' });
+    if (days <= 30 && i % 7 === 0) return `W${Math.floor(i / 7) + 1}`;
+    if (days >  30 && i % Math.ceil(days / 6) === 0) return `W${Math.floor(i / 7) + 1}`;
+    return '';
+  }
+
+  // Summary stats
+  const total  = data.reduce((s, d) => s + d.xp, 0);
+  const active = data.filter(d => d.xp > 0).length;
+  const best   = data.length ? Math.max(...data.map(d => d.xp)) : 0;
+  const avg    = active ? Math.round(total / active) : 0;
+
+  const showDots = days <= 30;
+
+  // ── Render ──────────────────────────────────────────────────
+  return (
+    <div style={S.card}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={S.sectionLabel}>XP per day</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {[7, 30].map(n => (
+            <button key={n} onClick={() => pickPreset(n)} style={{
+              fontSize: 10, padding: '3px 10px',
+              background: activePreset === n ? 'var(--color-background-secondary)' : 'transparent',
+              color:      activePreset === n ? 'var(--color-text-primary)'          : 'var(--color-text-tertiary)',
+              border: `0.5px solid ${activePreset === n ? 'var(--color-border-secondary)' : 'var(--color-border-tertiary)'}`,
+              borderRadius: 'var(--border-radius-md)',
+            }}>{n}d</button>
+          ))}
+          <div style={{ width: 1, height: 14, background: 'var(--color-border-tertiary)', margin: '0 2px' }} />
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 3,
+            border: `0.5px solid ${activePreset === null ? 'var(--color-border-secondary)' : 'var(--color-border-tertiary)'}`,
+            borderRadius: 'var(--border-radius-md)',
+            background: activePreset === null ? 'var(--color-background-secondary)' : 'transparent',
+            padding: '2px 6px 2px 8px',
+          }}>
+            <input
+              ref={customRef}
+              type="number" min="1" max="365"
+              value={customVal}
+              placeholder="—"
+              onChange={e => { setCustomVal(e.target.value); setPreset(null); }}
+              onKeyDown={e => e.key === 'Enter' && submitCustom()}
+              style={{
+                fontFamily: 'var(--font-mono)', fontSize: 10, width: 28,
+                background: 'none', border: 'none', outline: 'none',
+                color: 'var(--color-text-primary)', textAlign: 'center',
+              }}
+            />
+            <span style={{ fontSize: 9, color: 'var(--color-text-tertiary)' }}>d</span>
+            <button onClick={submitCustom} style={{
+              fontSize: 9, padding: '1px 5px', marginLeft: 2,
+              border: '0.5px solid var(--color-border-tertiary)',
+              borderRadius: 'var(--border-radius-md)',
+              background: 'var(--color-background-secondary)',
+              color: 'var(--color-text-secondary)',
+            }}>↵</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div ref={wrapRef} style={{ position: 'relative', height: H, marginBottom: 6 }}>
+
+        {/* Tooltip */}
+        {hovered && (
+          <div style={{
+            position: 'absolute', top: 2, pointerEvents: 'none', zIndex: 10,
+            left: Math.min(Math.max(hovered.x - 44, 0), W - 120),
+            background: 'var(--color-background-primary)',
+            border: '0.5px solid var(--color-border-secondary)',
+            borderRadius: 'var(--border-radius-md)',
+            padding: '5px 10px', fontSize: 11,
+          }}>
+            <div style={{ color: 'var(--color-text-info)', fontWeight: 500 }}>
+              {hovered.isEmpty ? '0 XP — rest day' : `+${hovered.xp} XP`}
+            </div>
+            <div style={{ fontSize: 9, color: 'var(--color-text-tertiary)', marginTop: 1 }}>
+              {hovered.isToday
+                ? 'Today'
+                : new Date(hovered.date + 'T12:00:00').toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })
+              }
+            </div>
+          </div>
+        )}
+
+        <svg key={chartKey} width={W} height={H} style={{ overflow: 'visible' }}>
+          <defs>
+            <linearGradient id="xpAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#3b82f6" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+
+          {/* Y-axis gridlines + labels */}
+          {[0, 0.5, 1].map(f => {
+            const y = pad.top + iH - f * iH;
+            return (
+              <g key={f}>
+                <line x1={pad.left} y1={y} x2={pad.left + iW} y2={y}
+                  stroke="var(--color-border-tertiary)" strokeWidth="0.5" />
+                <text x={pad.left - 4} y={y + 3} textAnchor="end"
+                  fontSize="8" fill="var(--color-text-tertiary)" fontFamily="var(--font-mono)">
+                  {Math.round(f * maxXP)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Crosshair */}
+          {hovered && (
+            <line x1={hovered.x} y1={pad.top} x2={hovered.x} y2={pad.top + iH}
+              stroke="var(--color-border-secondary)" strokeWidth="1" strokeDasharray="3 3" />
+          )}
+
+          {/* Area fill */}
+          {areaPath && <path d={areaPath} fill="url(#xpAreaGrad)" className="xp-area" />}
+
+          {/* Line */}
+          {linePath && (
+            <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="1.8"
+              strokeLinejoin="round" strokeLinecap="round" className="xp-line" />
+          )}
+
+          {/* Dots */}
+          {pts.map((p, i) => p.isToday ? (
+            <g key={i}>
+              <circle cx={p.x} cy={p.y} r="9" fill="none"
+                stroke="#f59e0b" strokeOpacity="0.2" className="xp-pulse" />
+              <circle cx={p.x} cy={p.y} r="5" fill="#f59e0b" className="xp-pulse" />
+            </g>
+          ) : showDots ? (
+            <circle key={i} cx={p.x} cy={p.y}
+              r={p.isEmpty ? '2.5' : '3.5'}
+              fill={p.isEmpty ? 'var(--color-background-primary)' : 'var(--color-background-secondary)'}
+              stroke={p.isEmpty ? 'var(--color-border-tertiary)' : '#3b82f6'}
+              strokeWidth="1.5"
+              className="xp-dot"
+              style={{ animationDelay: `${0.7 + i * Math.min(0.03, 0.6 / pts.length)}s` }}
+            />
+          ) : null)}
+
+          {/* Invisible hover zones */}
+          {pts.map((p, i) => (
+            <rect key={`z${i}`}
+              x={p.x - Math.max(step, 20) / 2} y={pad.top}
+              width={Math.max(step, 20)} height={iH}
+              fill="transparent"
+              onMouseEnter={() => setHovered(p)}
+              onMouseLeave={() => setHovered(null)}
+            />
+          ))}
+        </svg>
+      </div>
+
+      {/* X-axis labels */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
+        {data.map((d, i) => (
+          <span key={i} style={{
+            fontSize: 9, flex: 1, textAlign: 'center',
+            color: i === data.length - 1 ? 'var(--color-text-warning)' : 'var(--color-text-tertiary)',
+          }}>
+            {xLabel(d, i)}
+          </span>
+        ))}
+      </div>
+
+      {/* Summary row */}
+      <div style={{ display: 'flex', gap: 8, paddingTop: 12, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+        {[
+          { val: total,  lbl: 'total XP'         },
+          { val: active, lbl: 'active days'       },
+          { val: best,   lbl: 'best day'          },
+          { val: avg,    lbl: 'avg / active day'  },
+        ].map(s => (
+          <div key={s.lbl} style={{ textAlign: 'center', flex: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)' }}>{s.val}</div>
+            <div style={{ fontSize: 9, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>{s.lbl}</div>
+          </div>
+        ))}
+      </div>
+
     </div>
   );
 }
