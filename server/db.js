@@ -119,10 +119,13 @@ export function upsertActivity(date, xp) {
 
 export function getActivity(days) {
   if (!Number.isInteger(days) || days < 1) return [];
+  function localDateStr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
   const start = (() => {
     const d = new Date();
     d.setDate(d.getDate() - days + 1);
-    return d.toISOString().slice(0, 10);
+    return localDateStr(d);
   })();
   const rows = db.prepare(
     'SELECT date, xp FROM activity_log WHERE date >= ? ORDER BY date ASC'
@@ -132,7 +135,7 @@ export function getActivity(days) {
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const date = d.toISOString().slice(0, 10);
+    const date = localDateStr(d);
     result.push({ date, xp: map[date] ?? 0 });
   }
   return result;
