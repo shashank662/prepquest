@@ -239,7 +239,7 @@ export default function App() {
         ))}
       </div>
 
-      {tab === "overview"      && <OverviewTab profile={profile} dsa={dsa} sd={sd} java={java} achSet={achSet} />}
+      {tab === "overview"      && <OverviewTab profile={profile} dsa={dsa} sd={sd} java={java} achSet={achSet} loadData={loadData} />}
       {tab === "dsa"           && <DSATab dsa={dsa} />}
       {tab === "system design" && <SDTab sd={sd} />}
       {tab === "java"          && <JavaTab java={java} />}
@@ -326,7 +326,7 @@ function Centered({ children, style }) {
   );
 }
 
-function OverviewTab({ profile, dsa, sd, java, achSet }) {
+function OverviewTab({ profile, dsa, sd, java, achSet, loadData }) {
   const dsaCleared = DSA_TOPICS.filter(t => (dsa[t]?.e||0)+(dsa[t]?.m||0)+(dsa[t]?.h||0) >= 3).length;
   const sdDone     = Object.values(sd).filter(Boolean).length;
   const javaDone   = Object.values(java).filter(Boolean).length;
@@ -337,7 +337,7 @@ function OverviewTab({ profile, dsa, sd, java, achSet }) {
   ];
   return (
     <div>
-      <ActivityGraph />
+      <ActivityGraph loadData={loadData} />
       <div style={S.card}>
         <div style={S.sectionLabel}>Category Progress</div>
         {cats.map(c => (
@@ -371,7 +371,7 @@ function OverviewTab({ profile, dsa, sd, java, achSet }) {
   );
 }
 
-function ActivityGraph() {
+function ActivityGraph({ loadData }) {
   const [days,        setDays]      = useState(7);
   const [data,        setData]      = useState([]);
   const [activePreset,setPreset]    = useState(7);   // 7 | 30 | null (custom)
@@ -382,6 +382,11 @@ function ActivityGraph() {
   const customRef = useRef(null);
   const [wrapW,   setWrapW]         = useState(560);
   const gradId    = useId();
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [dayEvents,    setDayEvents]    = useState(null);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetting,    setResetting]    = useState(false);
+  const abortRef = useRef(null);
 
   // Track container width with ResizeObserver so chart redraws on resize
   useEffect(() => {
@@ -416,6 +421,18 @@ function ActivityGraph() {
     return () => el.removeEventListener('change', handleNativeChange);
   }, []);
 
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') {
+        setSelectedDate(null);
+        setDayEvents(null);
+        setResetConfirm(false);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   function pickPreset(n) {
     setPreset(n);
     setCustomVal('');
@@ -425,6 +442,52 @@ function ActivityGraph() {
   function submitCustom() {
     const n = Math.min(Math.max(parseInt(customVal, 10) || 0, 1), 365);
     setPreset(null); setDays(n);
+  }
+
+  function selectDate(p) {
+    if (selectedDate === p.date) {
+      setSelectedDate(null);
+      setDayEvents(null);
+      setResetConfirm(false);
+      setResetting(false);
+      return;
+    }
+    setSelectedDate(p.date);
+    setDayEvents(null);
+    setResetConfirm(false);
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+    fetch(`/api/events?date=${p.date}`, { signal: abortRef.current.signal })
+      .then(r => r.json())
+      .then(json => setDayEvents(json.events || []))
+      .catch(err => { if (err.name !== 'AbortError') setDayEvents([]); });
+  }
+
+  async function confirmReset() {
+    setResetting(true);
+    try {
+      const res = await fetch('/api/reset-day', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ date: selectedDate }),
+      });
+      if (res.ok) {
+        setSelectedDate(null);
+        setDayEvents(null);
+        setResetConfirm(false);
+        await loadData();
+        const actRes  = await fetch(`/api/activity?days=${days}`);
+        const actJson = await actRes.json();
+        setData(actJson.data || []);
+        setChartKey(k => k + 1);
+      } else {
+        setResetConfirm(false);
+      }
+    } catch {
+      // silently swallow — panel stays open
+    } finally {
+      setResetting(false);
+    }
   }
 
   // ── Chart geometry ──────────────────────────────────────────
@@ -615,12 +678,103 @@ function ActivityGraph() {
               x={p.x - Math.max(step, 20) / 2} y={pad.top}
               width={Math.max(step, 20)} height={iH}
               fill="transparent"
+              style={{ cursor: 'pointer' }}
               onMouseEnter={() => setHovered(p)}
               onMouseLeave={() => setHovered(null)}
+              onClick={() => selectDate(p)}
             />
           ))}
         </svg>
       </div>
+
+      {/* Detail panel */}
+      {selectedDate && (
+        <div style={{
+          margin: '10px 0',
+          padding: '12px 14px',
+          background: 'var(--color-background-secondary)',
+          border: '0.5px solid var(--color-border-secondary)',
+          borderRadius: 'var(--border-radius-md)',
+          fontSize: 11,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>
+              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })}
+            </div>
+            <button
+              onClick={() => { setSelectedDate(null); setDayEvents(null); setResetConfirm(false); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: 13, lineHeight: 1 }}
+            >✕</button>
+          </div>
+
+          {dayEvents === null ? (
+            <div style={{ color: 'var(--color-text-tertiary)' }}>Loading…</div>
+          ) : dayEvents.length === 0 ? (
+            <div style={{ color: 'var(--color-text-tertiary)' }}>No individual events recorded for this day.</div>
+          ) : (() => {
+            const dayData     = data.find(d => d.date === selectedDate);
+            const dayXp       = dayData ? dayData.xp : 0;
+            const baseXp      = dayEvents.reduce((s, e) => s + e.xp_earned, 0);
+            const streakBonus = Math.max(0, dayXp - baseXp);
+            return (
+              <div>
+                {dayEvents.map(ev => (
+                  <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', color: 'var(--color-text-secondary)', borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+                    <span>
+                      {ev.topic}
+                      {ev.difficulty ? ` · ${ev.difficulty}` : ''}
+                      {ev.type !== 'dsa' ? ` · ${ev.type}` : ''}
+                    </span>
+                    <span style={{ color: 'var(--color-text-info)', fontFamily: 'var(--font-mono)' }}>+{ev.xp_earned} XP</span>
+                  </div>
+                ))}
+                {streakBonus > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', color: 'var(--color-text-secondary)', borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+                    <span>Streak bonus</span>
+                    <span style={{ color: 'var(--color-text-info)', fontFamily: 'var(--font-mono)' }}>+{streakBonus} XP</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0 4px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                  <span>Total</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{dayXp} XP</span>
+                </div>
+                {!resetConfirm ? (
+                  <button
+                    onClick={() => setResetConfirm(true)}
+                    style={{
+                      marginTop: 8, width: '100%', padding: '7px', fontSize: 11, cursor: 'pointer',
+                      background: 'var(--color-background-danger)', color: 'var(--color-text-danger)',
+                      border: '0.5px solid var(--color-border-danger)', borderRadius: 'var(--border-radius-md)',
+                    }}
+                  >Reset this day</button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button
+                      onClick={confirmReset}
+                      disabled={resetting}
+                      style={{
+                        flex: 1, padding: '7px', fontSize: 11, cursor: resetting ? 'not-allowed' : 'pointer',
+                        background: 'var(--color-background-danger)', color: 'var(--color-text-danger)',
+                        border: '0.5px solid var(--color-border-danger)', borderRadius: 'var(--border-radius-md)',
+                        opacity: resetting ? 0.6 : 1,
+                      }}
+                    >{resetting ? 'Resetting…' : 'Confirm reset ↩'}</button>
+                    <button
+                      onClick={() => setResetConfirm(false)}
+                      disabled={resetting}
+                      style={{
+                        padding: '7px 14px', fontSize: 11, cursor: 'pointer',
+                        background: 'none', color: 'var(--color-text-secondary)',
+                        border: '0.5px solid var(--color-border-tertiary)', borderRadius: 'var(--border-radius-md)',
+                      }}
+                    >Cancel</button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* X-axis labels */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
