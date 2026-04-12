@@ -1,0 +1,160 @@
+<h2>Which chart style feels right?</h2>
+<p class="subtitle">All use XP on Y-axis, days on X-axis — pick what fits the PrepQuest aesthetic</p>
+
+<div class="cards">
+
+  <!-- Option A: Bar chart -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#0d0d0d;border-radius:6px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-family:monospace;font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.08em">XP / Day — last 7d</span>
+        <div style="display:flex;gap:4px;">
+          <span style="font-family:monospace;font-size:9px;padding:2px 8px;border:1px solid #333;border-radius:3px;color:#aaa;background:#1a1a1a">7d</span>
+          <span style="font-family:monospace;font-size:9px;padding:2px 8px;border:1px solid #555;border-radius:3px;color:#fff;background:#2a2a2a">30d</span>
+        </div>
+      </div>
+      <!-- Bar chart -->
+      <div style="display:flex;align-items:flex-end;gap:5px;height:80px;padding:0 4px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+          <div style="width:100%;background:#3b82f6;border-radius:2px 2px 0 0;height:30px;opacity:.7;"></div>
+          <span style="font-size:8px;color:#666;font-family:monospace">Mon</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+          <div style="width:100%;background:#3b82f6;border-radius:2px 2px 0 0;height:55px;opacity:.85;"></div>
+          <span style="font-size:8px;color:#666;font-family:monospace">Tue</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+          <div style="width:100%;background:#3b82f6;border-radius:2px 2px 0 0;height:20px;opacity:.7;"></div>
+          <span style="font-size:8px;color:#666;font-family:monospace">Wed</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+          <div style="width:100%;background:#3b82f6;border-radius:2px 2px 0 0;height:72px;opacity:.95;"></div>
+          <span style="font-size:8px;color:#666;font-family:monospace">Thu</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+          <div style="width:100%;background:#666;border-radius:2px 2px 0 0;height:4px;"></div>
+          <span style="font-size:8px;color:#444;font-family:monospace">Fri</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+          <div style="width:100%;background:#3b82f6;border-radius:2px 2px 0 0;height:44px;opacity:.8;"></div>
+          <span style="font-size:8px;color:#666;font-family:monospace">Sat</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+          <div style="width:100%;background:#f59e0b;border-radius:2px 2px 0 0;height:80px;"></div>
+          <span style="font-size:8px;color:#aaa;font-family:monospace">Sun</span>
+        </div>
+      </div>
+      <div style="border-top:1px solid #222;margin-top:4px;"></div>
+    </div>
+    <div class="card-body">
+      <h3>A — Bar Chart</h3>
+      <p>Clean column per day. Easy to compare at a glance. Missed days show as an empty stub. Today highlighted in amber.</p>
+    </div>
+  </div>
+
+  <!-- Option B: SVG Line chart with area fill -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#0d0d0d;border-radius:6px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-family:monospace;font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.08em">XP / Day — last 7d</span>
+        <div style="display:flex;gap:4px;">
+          <span style="font-family:monospace;font-size:9px;padding:2px 8px;border:1px solid #333;border-radius:3px;color:#aaa;background:#1a1a1a">7d</span>
+          <span style="font-family:monospace;font-size:9px;padding:2px 8px;border:1px solid #555;border-radius:3px;color:#fff;background:#2a2a2a">30d</span>
+        </div>
+      </div>
+      <svg width="100%" height="88" viewBox="0 0 260 80" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="fillB" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.02"/>
+          </linearGradient>
+        </defs>
+        <!-- area fill -->
+        <path d="M0,57 L43,36 L86,64 L129,12 L172,76 L215,24 L258,4 L258,78 L0,78 Z" fill="url(#fillB)"/>
+        <!-- line -->
+        <path d="M0,57 L43,36 L86,64 L129,12 L172,76 L215,24 L258,4" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- dots -->
+        <circle cx="0"   cy="57" r="2.5" fill="#3b82f6"/>
+        <circle cx="43"  cy="36" r="2.5" fill="#3b82f6"/>
+        <circle cx="86"  cy="64" r="2.5" fill="#3b82f6"/>
+        <circle cx="129" cy="12" r="2.5" fill="#3b82f6"/>
+        <circle cx="172" cy="76" r="2.5" fill="#444"/>
+        <circle cx="215" cy="24" r="2.5" fill="#3b82f6"/>
+        <circle cx="258" cy="4"  r="3"   fill="#f59e0b"/>
+        <!-- day labels -->
+        <text x="0"   y="78" font-size="7" fill="#555" font-family="monospace">Mon</text>
+        <text x="38"  y="78" font-size="7" fill="#555" font-family="monospace">Tue</text>
+        <text x="81"  y="78" font-size="7" fill="#555" font-family="monospace">Wed</text>
+        <text x="124" y="78" font-size="7" fill="#555" font-family="monospace">Thu</text>
+        <text x="167" y="78" font-size="7" fill="#444" font-family="monospace">Fri</text>
+        <text x="210" y="78" font-size="7" fill="#555" font-family="monospace">Sat</text>
+        <text x="251" y="78" font-size="7" fill="#aaa" font-family="monospace">Sun</text>
+      </svg>
+    </div>
+    <div class="card-body">
+      <h3>B — Line + Area Fill</h3>
+      <p>Smooth trend line with a subtle gradient fill beneath. Shows momentum and dips clearly. Today as a glowing dot.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Dot/step sparkline, minimal -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#0d0d0d;border-radius:6px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-family:monospace;font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.08em">XP / Day — last 7d</span>
+        <div style="display:flex;gap:4px;">
+          <span style="font-family:monospace;font-size:9px;padding:2px 8px;border:1px solid #333;border-radius:3px;color:#aaa;background:#1a1a1a">7d</span>
+          <span style="font-family:monospace;font-size:9px;padding:2px 8px;border:1px solid #555;border-radius:3px;color:#fff;background:#2a2a2a">30d</span>
+        </div>
+      </div>
+      <!-- Dot grid sparkline -->
+      <div style="position:relative;height:80px;">
+        <!-- Y gridlines subtle -->
+        <div style="position:absolute;top:0;left:0;right:0;height:1px;border-top:1px dashed #1f1f1f;"></div>
+        <div style="position:absolute;top:33%;left:0;right:0;height:1px;border-top:1px dashed #1f1f1f;"></div>
+        <div style="position:absolute;top:66%;left:0;right:0;height:1px;border-top:1px dashed #1f1f1f;"></div>
+        <!-- XP dots + connecting lines via SVG -->
+        <svg width="100%" height="80" viewBox="0 0 260 70" preserveAspectRatio="none" style="position:absolute;top:0;left:0;">
+          <!-- connecting lines -->
+          <line x1="0" y1="40" x2="43" y2="25" stroke="#2a2a2a" stroke-width="1"/>
+          <line x1="43" y1="25" x2="86" y2="46" stroke="#2a2a2a" stroke-width="1"/>
+          <line x1="86" y1="46" x2="129" y2="8" stroke="#2a2a2a" stroke-width="1"/>
+          <line x1="129" y1="8" x2="172" y2="60" stroke="#2a2a2a" stroke-width="1"/>
+          <line x1="172" y1="60" x2="215" y2="17" stroke="#2a2a2a" stroke-width="1"/>
+          <line x1="215" y1="17" x2="258" y2="3" stroke="#2a2a2a" stroke-width="1"/>
+          <!-- dots -->
+          <circle cx="0"   cy="40" r="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <circle cx="43"  cy="25" r="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <circle cx="86"  cy="46" r="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <circle cx="129" cy="8"  r="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <circle cx="172" cy="60" r="4" fill="#1e293b" stroke="#333"    stroke-width="1.5"/>
+          <circle cx="215" cy="17" r="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <circle cx="258" cy="3"  r="5" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.5"/>
+          <!-- XP labels above dots -->
+          <text x="0"   y="35" font-size="6" fill="#555" font-family="monospace" text-anchor="middle">35</text>
+          <text x="43"  y="20" font-size="6" fill="#555" font-family="monospace" text-anchor="middle">70</text>
+          <text x="86"  y="41" font-size="6" fill="#555" font-family="monospace" text-anchor="middle">25</text>
+          <text x="129" y="3"  font-size="6" fill="#555" font-family="monospace" text-anchor="middle">120</text>
+          <text x="172" y="55" font-size="6" fill="#444" font-family="monospace" text-anchor="middle">0</text>
+          <text x="215" y="12" font-size="6" fill="#555" font-family="monospace" text-anchor="middle">85</text>
+          <text x="258" y="-2" font-size="6" fill="#f59e0b" font-family="monospace" text-anchor="middle">135</text>
+        </svg>
+        <!-- day labels -->
+        <div style="position:absolute;bottom:-4px;left:0;right:0;display:flex;justify-content:space-between;padding:0 2px;">
+          <span style="font-size:7px;color:#555;font-family:monospace">Mon</span>
+          <span style="font-size:7px;color:#555;font-family:monospace">Tue</span>
+          <span style="font-size:7px;color:#555;font-family:monospace">Wed</span>
+          <span style="font-size:7px;color:#555;font-family:monospace">Thu</span>
+          <span style="font-size:7px;color:#444;font-family:monospace">Fri</span>
+          <span style="font-size:7px;color:#555;font-family:monospace">Sat</span>
+          <span style="font-size:7px;color:#f59e0b;font-family:monospace">Sun</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Dot + Line (Minimal)</h3>
+      <p>Each day is a dot with its XP value shown above. Sparse connecting lines. Very readable, matches the monospace terminal vibe.</p>
+    </div>
+  </div>
+
+</div>

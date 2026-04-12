@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PrepQuest — Animated Chart Preview</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0a0a;
+    color: #e2e8f0;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .card {
+    background: #111;
+    border: 0.5px solid #222;
+    border-radius: 10px;
+    padding: 18px 20px;
+    width: 100%;
+    max-width: 620px;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+  }
+
+  .toggle {
+    display: flex;
+    gap: 4px;
+  }
+
+  .toggle-btn {
+    font-family: inherit;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 0.5px solid #2a2a2a;
+    background: #1a1a1a;
+    color: #666;
+    cursor: pointer;
+    transition: all .2s;
+  }
+
+  .toggle-btn.active {
+    border-color: #444;
+    background: #252525;
+    color: #e2e8f0;
+  }
+
+  .chart-wrap {
+    position: relative;
+    height: 140px;
+    margin-bottom: 8px;
+  }
+
+  svg.chart {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* Line draw animation */
+  .chart-line {
+    stroke-dasharray: 2000;
+    stroke-dashoffset: 2000;
+    animation: drawLine .9s cubic-bezier(.4,0,.2,1) forwards;
+  }
+
+  @keyframes drawLine {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* Area fill fade */
+  .chart-area {
+    opacity: 0;
+    animation: fadeArea .6s ease forwards .7s;
+  }
+
+  @keyframes fadeArea {
+    to { opacity: 1; }
+  }
+
+  /* Dot pop-in (staggered via JS) */
+  .chart-dot {
+    transform-origin: center;
+    transform-box: fill-box;
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  .chart-dot.popped {
+    animation: popDot .3s cubic-bezier(.34,1.56,.64,1) forwards;
+  }
+
+  @keyframes popDot {
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Today dot pulse */
+  .dot-today {
+    animation: pulse 2s ease-in-out infinite;
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+
+  @keyframes pulse {
+    0%, 100% { r: 5; opacity: 1; }
+    50%       { r: 7; opacity: .7; }
+  }
+
+  /* Tooltip */
+  .tooltip {
+    position: absolute;
+    background: #1e1e1e;
+    border: 0.5px solid #333;
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 11px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s;
+    white-space: nowrap;
+    z-index: 10;
+  }
+
+  .tooltip.visible { opacity: 1; }
+
+  .tooltip .xp { color: #3b82f6; font-weight: 600; }
+  .tooltip .day { color: #666; font-size: 9px; margin-top: 1px; }
+
+  /* Crosshair */
+  .crosshair {
+    stroke: #2a2a2a;
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    opacity: 0;
+    transition: opacity .1s;
+    pointer-events: none;
+  }
+
+  /* Day labels */
+  .day-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+  }
+
+  .day-label {
+    font-size: 9px;
+    color: #444;
+    text-align: center;
+    flex: 1;
+    transition: color .2s;
+  }
+
+  .day-label.today { color: #f59e0b; }
+  .day-label.hovered { color: #888; }
+
+  /* XP axis labels */
+  .axis-label {
+    font-size: 8px;
+    fill: #333;
+    font-family: monospace;
+  }
+
+  /* View transition */
+  .chart-wrap.transitioning svg {
+    opacity: 0;
+    transition: opacity .2s;
+  }
+
+  .chart-wrap svg {
+    opacity: 1;
+    transition: opacity .2s .1s;
+  }
+
+  .summary {
+    display: flex;
+    gap: 16px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 0.5px solid #1a1a1a;
+  }
+
+  .summary-item { text-align: center; flex: 1; }
+  .summary-val { font-size: 16px; font-weight: 500; color: #e2e8f0; }
+  .summary-lbl { font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+
+  .note {
+    text-align: center;
+    margin-top: 28px;
+    font-size: 11px;
+    color: #444;
+  }
+  .note em { color: #3b82f6; font-style: normal; }
+</style>
+</head>
+<body>
+
+<div style="width:100%;max-width:640px;">
+  <div class="card">
+    <div class="card-header">
+      <span class="label">XP earned per day</span>
+      <div class="toggle">
+        <button class="toggle-btn active" id="btn7" onclick="setView(7)">7d</button>
+        <button class="toggle-btn" id="btn30" onclick="setView(30)">30d</button>
+      </div>
+    </div>
+
+    <div class="chart-wrap" id="chartWrap">
+      <div class="tooltip" id="tooltip">
+        <div class="xp" id="ttXP"></div>
+        <div class="day" id="ttDay"></div>
+      </div>
+      <!-- SVG rendered by JS -->
+    </div>
+
+    <div class="day-labels" id="dayLabels"></div>
+
+    <div class="summary" id="summary"></div>
+  </div>
+
+  <p class="note">Hover over dots · Click <em>7d / 30d</em> to toggle · Today pulses in <span style="color:#f59e0b">amber</span></p>
+</div>
+
+<script>
+// Sample data — 30 days of fake XP
+const ALL_DATA = (() => {
+  const days = [];
+  const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const xps = [
+    35, 70, 0, 120, 0, 85, 135,   // week 1
+    50, 0, 90, 40, 110, 70, 0,    // week 2
+    80, 35, 0, 150, 60, 0, 95,    // week 3
+    40, 70, 0, 85, 120, 50, 0,    // week 4 + 2 more
+    110, 175                       // "today" and yesterday
+  ];
+  for (let i = 0; i < 30; i++) {
+    days.push({ label: labels[i % 7], xp: xps[i] ?? 0 });
+  }
+  return days;
+})();
+
+let currentView = 7;
+let hovered = null;
+
+function setView(n) {
+  currentView = n;
+  document.getElementById('btn7').classList.toggle('active', n === 7);
+  document.getElementById('btn30').classList.toggle('active', n === 30);
+  renderChart(n);
+}
+
+function renderChart(n) {
+  const wrap = document.getElementById('chartWrap');
+  const data = ALL_DATA.slice(-n);
+
+  // Transition out
+  wrap.classList.add('transitioning');
+  setTimeout(() => {
+    wrap.classList.remove('transitioning');
+    buildChart(data, wrap, n);
+  }, 200);
+}
+
+function buildChart(data, wrap, n) {
+  // Clear old SVG (keep tooltip)
+  const old = wrap.querySelector('svg');
+  if (old) old.remove();
+
+  const W = wrap.clientWidth || 560;
+  const H = 130;
+  const pad = { top: 14, right: 8, bottom: 18, left: 28 };
+  const iW = W - pad.left - pad.right;
+  const iH = H - pad.top - pad.bottom;
+
+  const maxXP = Math.max(...data.map(d => d.xp), 40);
+  const step  = iW / Math.max(data.length - 1, 1);
+
+  const pts = data.map((d, i) => ({
+    x: pad.left + i * step,
+    y: pad.top + iH - (d.xp / maxXP) * iH,
+    xp: d.xp,
+    label: d.label,
+    isToday: i === data.length - 1,
+    isEmpty: d.xp === 0,
+  }));
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.classList.add('chart');
+
+  const defs = svgEl('defs');
+  const grad = svgEl('linearGradient', { id:'areaGrad', x1:'0', y1:'0', x2:'0', y2:'1' });
+  grad.appendChild(svgEl('stop', { offset:'0%',   'stop-color':'#3b82f6', 'stop-opacity':'0.3' }));
+  grad.appendChild(svgEl('stop', { offset:'100%', 'stop-color':'#3b82f6', 'stop-opacity':'0.02' }));
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  // Y-axis gridlines + labels
+  [0, 0.5, 1].forEach(frac => {
+    const y = pad.top + iH - frac * iH;
+    const line = svgEl('line', { x1: pad.left, y1: y, x2: pad.left + iW, y2: y,
+      stroke: '#1a1a1a', 'stroke-width': '1' });
+    svg.appendChild(line);
+    const lbl = svgEl('text', { x: pad.left - 4, y: y + 3, 'text-anchor': 'end' });
+    lbl.classList.add('axis-label');
+    lbl.textContent = Math.round(frac * maxXP);
+    svg.appendChild(lbl);
+  });
+
+  // Crosshair (hidden until hover)
+  const crosshair = svgEl('line', { x1: 0, y1: pad.top, x2: 0, y2: pad.top + iH });
+  crosshair.classList.add('crosshair');
+  crosshair.id = 'crosshair';
+  svg.appendChild(crosshair);
+
+  // Area path
+  if (pts.length > 1) {
+    const linePts = pts.map(p => `${p.x},${p.y}`).join(' L ');
+    const areaD = `M ${pts[0].x},${pts[0].y} L ${linePts} L ${pts[pts.length-1].x},${pad.top+iH} L ${pts[0].x},${pad.top+iH} Z`;
+    const area = svgEl('path', { d: areaD, fill: 'url(#areaGrad)' });
+    area.classList.add('chart-area');
+    svg.appendChild(area);
+
+    // Line path (smooth with bezier)
+    const lineD = buildSmoothPath(pts);
+    const line = svgEl('path', { d: lineD, fill: 'none', stroke: '#3b82f6', 'stroke-width': '1.8', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+    line.classList.add('chart-line');
+    svg.appendChild(line);
+  }
+
+  // Dots
+  pts.forEach((p, i) => {
+    if (p.isToday) {
+      // Pulse ring behind
+      const ring = svgEl('circle', { cx: p.x, cy: p.y, r: '7', fill: 'none', stroke: '#f59e0b', 'stroke-opacity': '0.25' });
+      ring.classList.add('dot-today');
+      svg.appendChild(ring);
+      const dot = svgEl('circle', { cx: p.x, cy: p.y, r: '5', fill: '#f59e0b' });
+      dot.classList.add('dot-today');
+      svg.appendChild(dot);
+    } else {
+      const dot = svgEl('circle', {
+        cx: p.x, cy: p.y, r: p.isEmpty ? '3' : '4',
+        fill: p.isEmpty ? '#111' : '#1e293b',
+        stroke: p.isEmpty ? '#2a2a2a' : '#3b82f6',
+        'stroke-width': '1.5',
+        'data-idx': i,
+      });
+      dot.classList.add('chart-dot');
+      svg.appendChild(dot);
+
+      // Staggered pop-in
+      setTimeout(() => dot.classList.add('popped'), 700 + i * 30);
+    }
+  });
+
+  // Hover zone overlays (invisible rects for hit area)
+  pts.forEach((p, i) => {
+    const zoneW = Math.max(step, 24);
+    const zone = svgEl('rect', {
+      x: p.x - zoneW/2, y: pad.top,
+      width: zoneW, height: iH,
+      fill: 'transparent',
+      'data-idx': i,
+    });
+    zone.addEventListener('mouseenter', () => showTooltip(p, wrap));
+    zone.addEventListener('mouseleave', hideTooltip);
+    svg.appendChild(zone);
+  });
+
+  wrap.appendChild(svg);
+
+  // Day labels
+  renderDayLabels(data, n);
+  renderSummary(data);
+}
+
+function buildSmoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1], curr = pts[i];
+    const cpx = (prev.x + curr.x) / 2;
+    d += ` C ${cpx} ${prev.y}, ${cpx} ${curr.y}, ${curr.x} ${curr.y}`;
+  }
+  return d;
+}
+
+function showTooltip(p, wrap) {
+  const tt = document.getElementById('tooltip');
+  const ch = document.getElementById('crosshair');
+  document.getElementById('ttXP').textContent = p.isEmpty ? '0 XP — rest day' : `+${p.xp} XP`;
+  document.getElementById('ttDay').textContent = p.isToday ? `${p.label} (today)` : p.label;
+  tt.classList.add('visible');
+
+  // Position tooltip
+  const wRect = wrap.getBoundingClientRect();
+  const svgEl2 = wrap.querySelector('svg');
+  const W = svgEl2.clientWidth;
+  const left = p.isToday
+    ? Math.min(p.x - 10, W - 100)
+    : Math.max(p.x - 40, 0);
+  tt.style.left = left + 'px';
+  tt.style.top  = '4px';
+
+  // Crosshair
+  if (ch) {
+    ch.setAttribute('x1', p.x); ch.setAttribute('x2', p.x);
+    ch.style.opacity = '1';
+  }
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').classList.remove('visible');
+  const ch = document.getElementById('crosshair');
+  if (ch) ch.style.opacity = '0';
+}
+
+function renderDayLabels(data, n) {
+  const container = document.getElementById('dayLabels');
+  container.innerHTML = '';
+  const show = n <= 7 ? data : data.filter((_, i) => i % 5 === 0 || i === data.length - 1);
+  const total = n <= 7 ? data.length : data.length;
+
+  if (n <= 7) {
+    data.forEach((d, i) => {
+      const span = document.createElement('span');
+      span.className = 'day-label' + (i === data.length - 1 ? ' today' : '');
+      span.textContent = d.label;
+      container.appendChild(span);
+    });
+  } else {
+    // For 30d show week markers
+    data.forEach((d, i) => {
+      const span = document.createElement('span');
+      span.className = 'day-label' + (i === data.length - 1 ? ' today' : '');
+      span.textContent = i % 7 === 0 ? `W${Math.floor(i/7)+1}` : (i === data.length-1 ? 'Today' : '');
+      container.appendChild(span);
+    });
+  }
+}
+
+function renderSummary(data) {
+  const total   = data.reduce((s, d) => s + d.xp, 0);
+  const active  = data.filter(d => d.xp > 0).length;
+  const best    = Math.max(...data.map(d => d.xp));
+  const avg     = active ? Math.round(total / active) : 0;
+
+  document.getElementById('summary').innerHTML = `
+    <div class="summary-item">
+      <div class="summary-val">${total}</div>
+      <div class="summary-lbl">total XP</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-val">${active}</div>
+      <div class="summary-lbl">active days</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-val">${best}</div>
+      <div class="summary-lbl">best day</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-val">${avg}</div>
+      <div class="summary-lbl">avg XP / day</div>
+    </div>
+  `;
+}
+
+function svgEl(tag, attrs = {}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+  return el;
+}
+
+// Init
+renderChart(7);
+</script>
+</body>
+</html>
