@@ -410,7 +410,7 @@ function ActivityGraph() {
     if (!el) return;
     function handleNativeChange() {
       const n = Math.min(Math.max(parseInt(el.value, 10) || 0, 1), 365);
-      if (n) { setPreset(null); setDays(n); }
+      setPreset(null); setDays(n);
     }
     el.addEventListener('change', handleNativeChange);
     return () => el.removeEventListener('change', handleNativeChange);
@@ -424,7 +424,7 @@ function ActivityGraph() {
 
   function submitCustom() {
     const n = Math.min(Math.max(parseInt(customVal, 10) || 0, 1), 365);
-    if (n) { setPreset(null); setDays(n); }
+    setPreset(null); setDays(n);
   }
 
   // ── Chart geometry ──────────────────────────────────────────
