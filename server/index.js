@@ -1,6 +1,6 @@
 import express from 'express';
 import cors    from 'cors';
-import { getAll, saveProfile, upsertDSA, upsertSD, upsertJava, resetAll } from './db.js';
+import { getAll, saveProfile, upsertDSA, upsertSD, upsertJava, resetAll, upsertActivity, getActivity } from './db.js';
 
 const app  = express();
 const PORT = 3001;
@@ -82,6 +82,13 @@ app.get('/api/data', (_req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /api/activity?days=N
+app.get('/api/activity', (req, res) => {
+  const days = Math.min(Math.max(parseInt(req.query.days, 10) || 7, 1), 365);
+  try { res.json({ data: getActivity(days) }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // POST /api/log
 app.post('/api/log', (req, res) => {
   const { type, topic, difficulty } = req.body;
@@ -89,6 +96,7 @@ app.post('/api/log', (req, res) => {
 
   try {
     let { profile, dsa, sd, java } = getAll();
+    const originalXp = profile.xp;
     let msg = '';
 
     const { profile: p1, bonus } = applyStreak(profile);
@@ -129,6 +137,7 @@ app.post('/api/log', (req, res) => {
 
     const { profile: finalProfile, earned } = checkAchievements(profile, dsa);
     saveProfile(finalProfile);
+    upsertActivity(todayStr(), finalProfile.xp - originalXp);
 
     res.json({ profile: finalProfile, dsa, sd, java, msg, newAchievements: earned });
   } catch (err) {
