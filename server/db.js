@@ -110,6 +110,7 @@ export function upsertJava(topic, done) {
 }
 
 export function upsertActivity(date, xp) {
+  if (typeof xp !== 'number' || xp <= 0) return;
   db.prepare(`
     INSERT INTO activity_log (date, xp) VALUES (?, ?)
     ON CONFLICT(date) DO UPDATE SET xp = xp + excluded.xp
@@ -117,6 +118,7 @@ export function upsertActivity(date, xp) {
 }
 
 export function getActivity(days) {
+  if (!Number.isInteger(days) || days < 1) return [];
   const start = (() => {
     const d = new Date();
     d.setDate(d.getDate() - days + 1);
