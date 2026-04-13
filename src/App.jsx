@@ -32,20 +32,38 @@ const LEVELS = [
 ];
 
 const ACHIEVEMENTS = [
-  { id: "first_blood", icon: "⚔️",  title: "First Blood",        desc: "Log your first activity"             },
-  { id: "streak_3",    icon: "🔥",  title: "On Fire",             desc: "3-day streak"                        },
-  { id: "streak_7",    icon: "🔥",  title: "Week Warrior",        desc: "7-day streak"                        },
-  { id: "streak_30",   icon: "💎",  title: "Diamond Grind",       desc: "30-day streak"                       },
-  { id: "easy_10",     icon: "✅",  title: "Warm-Up Done",        desc: "Solve 10 easy problems"              },
-  { id: "medium_25",   icon: "⚡",  title: "Getting Real",        desc: "Solve 25 medium problems"            },
-  { id: "medium_50",   icon: "⚡",  title: "Battle-Tested",       desc: "Solve 50 medium problems"            },
-  { id: "hard_5",      icon: "💀",  title: "Pain Embracer",       desc: "Solve 5 hard problems"               },
-  { id: "hard_20",     icon: "💀",  title: "Masochist",           desc: "Solve 20 hard problems"              },
-  { id: "sd_5",        icon: "🏗️", title: "Architect Initiate",  desc: "Design 5 systems"                    },
-  { id: "sd_all",      icon: "🏛️", title: "System Architect",    desc: "Complete all SD topics"              },
-  { id: "java_all",    icon: "☕",  title: "JVM Whisperer",       desc: "Study all Java topics"               },
-  { id: "dsa_half",    icon: "📐",  title: "Halfway There",       desc: "Clear 50% of DSA topics (3+ each)"  },
-  { id: "dsa_all",     icon: "🏆",  title: "DSA Master",          desc: "Clear all DSA topics (3+ each)"     },
+  // reward = real-world prize earned when this unlocks
+  { id: "first_blood", icon: "⚔️",  title: "First Blood",          desc: "Log your first activity",                  reward: null                        },
+  { id: "easy_5",      icon: "🌱",  title: "Just Warming Up",      desc: "Solve 5 easy problems",                    reward: "1 episode"                 },
+  { id: "dsa_10",      icon: "🎯",  title: "Double Digits",        desc: "10 DSA problems total",                    reward: "1 hr PS5"                  },
+  { id: "easy_10",     icon: "✅",  title: "Warm-Up Done",         desc: "Solve 10 easy problems",                   reward: "1 episode"                 },
+  { id: "medium_10",   icon: "⚡",  title: "Finding My Stride",    desc: "Solve 10 medium problems",                 reward: "1 episode"                 },
+  { id: "hard_5",      icon: "💀",  title: "Pain Embracer",        desc: "Solve 5 hard problems",                    reward: "2 episodes"                },
+  { id: "streak_3",    icon: "🔥",  title: "On Fire",              desc: "3-day streak",                             reward: "1 episode"                 },
+  { id: "sd_3",        icon: "🏗️", title: "Architect Cadet",      desc: "Design 3 systems",                         reward: "1 episode"                 },
+  { id: "java_3",      icon: "☕",  title: "Coffee Initiated",     desc: "Study 3 Java topics",                      reward: "1 episode"                 },
+  { id: "dsa_25",      icon: "🎯",  title: "Quarter Century",      desc: "25 DSA problems total",                    reward: "2 episodes"                },
+  { id: "streak_7",    icon: "🔥",  title: "Week Warrior",         desc: "7-day streak",                             reward: "1 hr PS5"                  },
+  { id: "medium_25",   icon: "⚡",  title: "Getting Real",         desc: "Solve 25 medium problems",                 reward: "2 hrs PS5"                 },
+  { id: "hard_10",     icon: "💀",  title: "Pain Connoisseur",     desc: "Solve 10 hard problems",                   reward: "2 hrs PS5"                 },
+  { id: "xp_1000",     icon: "✨",  title: "Four Figures",         desc: "Earn 1000 XP",                             reward: "1 hr PS5"                  },
+  { id: "sd_5",        icon: "🏗️", title: "Architect Initiate",   desc: "Design 5 systems",                         reward: "1 hr PS5"                  },
+  { id: "java_half",   icon: "☕",  title: "JVM Intern",           desc: "Study 4 Java topics",                      reward: "1 hr PS5"                  },
+  { id: "streak_14",   icon: "🔥",  title: "Two-Week Terror",      desc: "14-day streak",                            reward: "2 episodes"                },
+  { id: "hard_20",     icon: "💀",  title: "Masochist",            desc: "Solve 20 hard problems",                   reward: "2 hrs PS5"                 },
+  { id: "dsa_50",      icon: "🎯",  title: "Half Century",         desc: "50 DSA problems total",                    reward: "2 hrs PS5"                 },
+  { id: "sd_10",       icon: "🏗️", title: "Senior Architect",     desc: "Design 10 systems",                        reward: "1 hr PS5"                  },
+  { id: "medium_50",   icon: "⚡",  title: "Battle-Tested",        desc: "Solve 50 medium problems",                 reward: "3 hrs PS5"                 },
+  { id: "xp_3000",     icon: "💫",  title: "XP Hoarder",           desc: "Earn 3000 XP",                             reward: "2 hrs PS5"                 },
+  { id: "streak_21",   icon: "💎",  title: "Three-Week Flame",     desc: "21-day streak",                            reward: "movie night (2 hrs)"       },
+  { id: "java_all",    icon: "☕",  title: "JVM Whisperer",        desc: "Study all Java topics",                    reward: "2 hrs PS5"                 },
+  { id: "full_stack",  icon: "🧩",  title: "Full-Stack Prep",      desc: "5 SD + 5 Java topics done",               reward: "2 episodes"                },
+  { id: "dsa_half",    icon: "📐",  title: "Halfway There",        desc: "Clear 50% of DSA topics (3+ each)",       reward: "2 hrs PS5"                 },
+  { id: "hard_30",     icon: "💀",  title: "Absolute Masochist",   desc: "Solve 30 hard problems",                   reward: "3 hrs PS5"                 },
+  { id: "dsa_100",     icon: "💯",  title: "Centurion",            desc: "100 DSA problems total",                   reward: "evening session (3 hrs PS5)" },
+  { id: "sd_all",      icon: "🏛️", title: "System Architect",     desc: "Complete all SD topics",                   reward: "3 hrs PS5"                 },
+  { id: "streak_30",   icon: "💎",  title: "Diamond Grind",        desc: "30-day streak",                            reward: "free gaming Saturday"      },
+  { id: "dsa_all",     icon: "🏆",  title: "DSA Master",           desc: "Clear all DSA topics (3+ each)",           reward: "guilt-free gaming day"     },
 ];
 
 const XP_EARN = { easy: 15, medium: 35, hard: 70, sd: 50, java: 40 };
@@ -362,6 +380,7 @@ function OverviewTab({ profile, dsa, sd, java, achSet, loadData }) {
                 <div style={{ fontSize:15, marginBottom:4 }}>{a.icon}</div>
                 <div style={{ fontSize:11, fontWeight:500, color:"var(--color-text-primary)", marginBottom:2 }}>{a.title}</div>
                 <div style={{ fontSize:10, color:"var(--color-text-tertiary)" }}>{a.desc}</div>
+                {a.reward && <div style={{ fontSize:9, marginTop:4, color: done ? "var(--color-text-success)" : "var(--color-text-warning)" }}>🎁 {a.reward}</div>}
               </div>
             );
           })}
@@ -899,6 +918,11 @@ function AchRow({ a, done }) {
       <div style={{ flex:1 }}>
         <div style={{ fontSize:12, fontWeight:500, color:"var(--color-text-primary)", marginBottom:2 }}>{a.title}</div>
         <div style={{ fontSize:10, color:"var(--color-text-tertiary)" }}>{a.desc}</div>
+        {a.reward && (
+          <div style={{ fontSize:10, marginTop:3, color: done ? "var(--color-text-success)" : "var(--color-text-warning)" }}>
+            {done ? "🎁 " : "🔒 "}{a.reward}
+          </div>
+        )}
       </div>
       <div style={{ fontSize:10, color:done?"var(--color-text-success)":"var(--color-text-tertiary)", whiteSpace:"nowrap" }}>
         {done?"✓ earned":""}
