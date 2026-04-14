@@ -156,11 +156,11 @@ app.post('/api/log', (req, res) => {
       msg = `+${XP_EARN.sd} XP (system design)`;
 
     } else if (type === 'java') {
-      if (java[topic]) return res.status(409).json({ error: 'Already logged this topic' });
       profile.xp += XP_EARN.java + bonus;
-      profile.javaDone += 1;
-      java = { ...java, [topic]: true };
-      upsertJava(topic, true);
+      const prevCount = java[topic] || 0;
+      if (prevCount === 0) profile.javaDone += 1;
+      java = { ...java, [topic]: prevCount + 1 };
+      upsertJava(topic, prevCount + 1);
       msg = `+${XP_EARN.java} XP (java)`;
 
     } else {
@@ -218,11 +218,16 @@ app.post('/api/reset-day', (req, res) => {
         profile = { ...profile, sdDone: Math.max(0, profile.sdDone - 1) };
       }
 
-      // 4. Reverse Java events (unique topics only)
-      const javaTopics = [...new Set(events.filter(e => e.type === 'java').map(e => e.topic))];
+      // 4. Reverse Java events — decrement count per occurrence, drop javaDone when count hits 0
+      const javaTopicCounts = {};
+      for (const ev of events.filter(e => e.type === 'java'))
+        javaTopicCounts[ev.topic] = (javaTopicCounts[ev.topic] || 0) + 1;
+      const javaTopics = Object.keys(javaTopicCounts);
       for (const topic of javaTopics) {
-        java = { ...java, [topic]: false };
-        profile = { ...profile, javaDone: Math.max(0, profile.javaDone - 1) };
+        const newCount = Math.max(0, (java[topic] || 0) - javaTopicCounts[topic]);
+        if ((java[topic] || 0) > 0 && newCount === 0)
+          profile = { ...profile, javaDone: Math.max(0, profile.javaDone - 1) };
+        java = { ...java, [topic]: newCount };
       }
 
       // 5. Re-evaluate achievements AFTER topic state is updated
@@ -268,7 +273,7 @@ app.post('/api/reset-day', (req, res) => {
         upsertDSA(topic, t.e, t.m, t.h);
       }
       for (const topic of sdTopics)   upsertSD(topic, false);
-      for (const topic of javaTopics) upsertJava(topic, false);
+      for (const topic of javaTopics) upsertJava(topic, java[topic]);
     });
 
     resetTx();

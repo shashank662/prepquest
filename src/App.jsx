@@ -170,7 +170,7 @@ export default function App() {
   const bar    = getXPBar(profile.xp);
   const total  = profile.easy + profile.medium + profile.hard;
   const sdCnt  = Object.values(sd).filter(Boolean).length;
-  const jvCnt  = Object.values(java).filter(Boolean).length;
+  const jvCnt  = Object.values(java).filter(n => n > 0).length;
   const achSet = new Set(profile.achievements || []);
   const TABS   = ["overview", "dsa", "system design", "java", "achievements"];
 
@@ -316,7 +316,7 @@ export default function App() {
 
             {lType !== "dsa" && (
               <div style={{ marginBottom: 14, fontSize: 11, color: "var(--color-text-secondary)" }}>
-                Earns +{lType==="sd"?XP_EARN.sd:XP_EARN.java} XP · one-time per topic
+                Earns +{lType==="sd"?XP_EARN.sd:XP_EARN.java} XP{lType==="sd"?" · one-time per topic":" · per study session"}
               </div>
             )}
 
@@ -347,7 +347,7 @@ function Centered({ children, style }) {
 function OverviewTab({ profile, dsa, sd, java, achSet, loadData }) {
   const dsaCleared = DSA_TOPICS.filter(t => (dsa[t]?.e||0)+(dsa[t]?.m||0)+(dsa[t]?.h||0) >= 3).length;
   const sdDone     = Object.values(sd).filter(Boolean).length;
-  const javaDone   = Object.values(java).filter(Boolean).length;
+  const javaDone   = Object.values(java).filter(n => n > 0).length;
   const cats = [
     { label:"DSA Coverage",  val:dsaCleared, total:DSA_TOPICS.length,  color:"info"    },
     { label:"System Design", val:sdDone,      total:SD_TOPICS.length,   color:"success" },
@@ -876,7 +876,7 @@ function SDTab({ sd }) {
 }
 
 function JavaTab({ java }) {
-  const done = Object.values(java).filter(Boolean).length;
+  const done = Object.values(java).filter(n => n > 0).length;
   return (
     <div style={S.card}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
@@ -884,12 +884,16 @@ function JavaTab({ java }) {
         <div style={{ fontSize:11, color:"var(--color-text-secondary)" }}>{done}/{JAVA_TOPICS.length}</div>
       </div>
       <div style={{ display:"grid", gap:6 }}>
-        {JAVA_TOPICS.map(t => (
-          <div key={t} style={{ padding:"12px 14px", borderRadius:"var(--border-radius-md)", background:java[t]?"var(--color-background-warning)":"var(--color-background-secondary)", border:`0.5px solid ${java[t]?"var(--color-border-warning)":"var(--color-border-tertiary)"}`, display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ fontSize:12, color:java[t]?"var(--color-text-warning)":"var(--color-text-tertiary)" }}>{java[t]?"✓":"○"}</span>
-            <span style={{ fontSize:12, color:java[t]?"var(--color-text-warning)":"var(--color-text-primary)" }}>{t}</span>
-          </div>
-        ))}
+        {JAVA_TOPICS.map(t => {
+          const count = java[t] || 0;
+          return (
+            <div key={t} style={{ padding:"12px 14px", borderRadius:"var(--border-radius-md)", background:count>0?"var(--color-background-warning)":"var(--color-background-secondary)", border:`0.5px solid ${count>0?"var(--color-border-warning)":"var(--color-border-tertiary)"}`, display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:12, color:count>0?"var(--color-text-warning)":"var(--color-text-tertiary)" }}>{count>0?"✓":"○"}</span>
+              <span style={{ fontSize:12, color:count>0?"var(--color-text-warning)":"var(--color-text-primary)", flex:1 }}>{t}</span>
+              {count > 0 && <span style={{ fontSize:10, color:"var(--color-text-warning)", fontFamily:"var(--font-mono)" }}>×{count}</span>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

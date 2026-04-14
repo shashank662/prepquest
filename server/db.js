@@ -81,7 +81,7 @@ export function getAll() {
   const sd = Object.fromEntries(sdRows.map(r => [r.topic, r.done === 1]));
 
   const javaRows = db.prepare('SELECT * FROM java_topics').all();
-  const java = Object.fromEntries(javaRows.map(r => [r.topic, r.done === 1]));
+  const java = Object.fromEntries(javaRows.map(r => [r.topic, r.done]));
 
   return { profile, dsa, sd, java };
 }
@@ -113,11 +113,11 @@ export function upsertSD(topic, done) {
   `).run(topic, done ? 1 : 0);
 }
 
-export function upsertJava(topic, done) {
+export function upsertJava(topic, count) {
   db.prepare(`
     INSERT INTO java_topics (topic, done) VALUES (?, ?)
     ON CONFLICT(topic) DO UPDATE SET done = excluded.done
-  `).run(topic, done ? 1 : 0);
+  `).run(topic, count);
 }
 
 export function upsertActivity(date, xp) {
