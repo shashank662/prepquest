@@ -30,7 +30,7 @@ const XP_EARN = { easy: 15, medium: 35, hard: 70, sd: 50, java: 40 };
 
 const ACHIEVEMENTS = [
   // ── Existing ────────────────────────────────────────────────────────────────
-  { id: "first_blood", cond: (p)      => (p.easy + p.medium + p.hard) >= 1,                        xpBonus: 0   },
+  { id: "first_blood", cond: (p)      => (p.easy + p.medium + p.hard + p.sdDone + p.javaDone) >= 1, xpBonus: 0   },
   { id: "easy_5",      cond: (p)      => p.easy >= 5,                                              xpBonus: 15  },
   { id: "dsa_10",      cond: (p)      => (p.easy + p.medium + p.hard) >= 10,                       xpBonus: 50  },
   { id: "easy_10",     cond: (p)      => p.easy >= 10,                                             xpBonus: 50  },
