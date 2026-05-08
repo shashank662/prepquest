@@ -241,12 +241,13 @@ export default function AmazonSDE() {
   const [loadingDetail,   setLoadingDetail]   = useState(false);
   const [detailError,     setDetailError]     = useState(null);
   const [hoveredCard,     setHoveredCard]     = useState(null);
+  const [problemsError,   setProblemsError]   = useState(null);
 
   useEffect(() => {
     fetch('/api/amazon/problems')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error('Failed to load problems'); return r.json(); })
       .then(data => setAllProblems(Array.isArray(data) ? data : []))
-      .catch(() => {});
+      .catch(() => setProblemsError('Failed to load problems. Is the server running?'));
   }, []);
 
   const topicCounts = {};
@@ -255,11 +256,13 @@ export default function AmazonSDE() {
   }
 
   function openTopic(topic) {
+    setHoveredCard(null);
     setSelectedTopic(topic);
     setView('problems');
   }
 
   function openProblem(problem) {
+    setHoveredCard(null);
     setSelectedProblem(problem);
     setDetail(null);
     setDetailError(null);
@@ -282,6 +285,7 @@ export default function AmazonSDE() {
             <span style={S.logo}>Amazon SDE Sheet</span>
             <span style={S.subtitle}>{allProblems.length} problems · 14 topics · Java solutions</span>
           </div>
+          {problemsError && <div style={{ color: '#f44336', fontSize: 13, marginBottom: 16 }}>{problemsError}</div>}
           <div style={S.grid}>
             {TOPIC_ORDER.map(topic => {
               const meta = TOPICS_META[topic] || {};
