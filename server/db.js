@@ -54,6 +54,19 @@ db.exec(`
     difficulty TEXT,
     xp_earned  INTEGER NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS amazon_problems (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic            TEXT NOT NULL,
+    title            TEXT NOT NULL,
+    difficulty       TEXT NOT NULL,
+    practice_url     TEXT,
+    statement        TEXT,
+    intuition        TEXT,
+    time_complexity  TEXT,
+    space_complexity TEXT,
+    code             TEXT
+  );
 `);
 
 export { db };
@@ -178,4 +191,24 @@ export function getEventsForDate(date) {
 
 export function deleteEventsForDate(date) {
   db.prepare('DELETE FROM activity_events WHERE date = ?').run(date);
+}
+
+export function getAllAmazonProblems() {
+  return db.prepare(
+    'SELECT id, topic, title, difficulty, practice_url FROM amazon_problems ORDER BY id ASC'
+  ).all();
+}
+
+export function getAmazonProblem(id) {
+  return db.prepare(
+    'SELECT * FROM amazon_problems WHERE id = ?'
+  ).get(id);
+}
+
+export function upsertAmazonSolution(id, statement, intuition, timeComplexity, spaceComplexity, code) {
+  db.prepare(`
+    UPDATE amazon_problems
+    SET statement = ?, intuition = ?, time_complexity = ?, space_complexity = ?, code = ?
+    WHERE id = ?
+  `).run(statement, intuition, timeComplexity, spaceComplexity, code, id);
 }
