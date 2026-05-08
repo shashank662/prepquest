@@ -1,0 +1,173 @@
+# Amazon SDE Sheet Integration — Design Spec
+
+**Date:** 2026-05-08
+**Status:** Approved
+
+---
+
+## Overview
+
+Integrate an Amazon SDE Sheet (14 topics, ~150 problems) into PrepQuest as a visually distinct section. Problems and pre-generated Java solutions are stored in the existing PrepQuest SQLite DB. The sheet opens in a new browser tab via a button on the PrepQuest overview. Visual identity uses Amazon orange (`#FF9900`) and JetBrains Mono — distinct from PrepQuest's existing dark-minimal style.
+
+---
+
+## Data Layer
+
+### New table — `amazon_problems`
+
+```sql
+CREATE TABLE IF NOT EXISTS amazon_problems (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  topic            TEXT NOT NULL,
+  title            TEXT NOT NULL,
+  difficulty       TEXT NOT NULL,    -- "Easy" | "Medium" | "Hard"
+  practice_url     TEXT,
+  statement        TEXT,             -- problem description
+  intuition        TEXT,             -- approach explanation
+  time_complexity  TEXT,
+  space_complexity TEXT,
+  code             TEXT              -- full runnable Java solution with main() and test cases
+);
+```
+
+### New `db.js` exports
+
+| Function | Description |
+|----------|-------------|
+| `getAllAmazonProblems()` | Returns all rows — id, topic, title, difficulty, practice_url only (no solution fields) |
+| `getAmazonProblem(id)` | Returns one full row including all solution fields |
+| `upsertAmazonSolution(id, statement, intuition, timeComplexity, spaceComplexity, code)` | Inserts/updates solution fields for a problem by id |
+
+### Seed script — `server/seed-amazon.js`
+
+Standalone script (not part of the server). Run once during setup. Inserts all ~150 problem rows with full solutions (statement, intuition, complexities, Java code). After running, the DB is fully populated and the server reads only.
+
+`resetAll()` in `db.js` does NOT touch `amazon_problems` — this data is permanent prep content, not user activity.
+
+---
+
+## API Routes
+
+Two new read-only endpoints added to `server/index.js` (port 3001):
+
+```
+GET /api/amazon/problems
+→ [{ id, topic, title, difficulty, practice_url }, ...]
+```
+Returns metadata for all problems. No solution fields — keeps the list payload small.
+
+```
+GET /api/amazon/problem/:id
+→ { id, topic, title, difficulty, practice_url,
+    statement, intuition, time_complexity, space_complexity, code }
+```
+Returns one full problem row including the solution.
+
+No write endpoints from the UI — solutions come exclusively from the seed script.
+
+---
+
+## Frontend
+
+### Entry point
+
+A button on PrepQuest's **overview tab** (in `src/App.jsx`) opens the Amazon SDE Sheet:
+
+```jsx
+<button onClick={() => window.open('/amazon', '_blank')}>
+  Amazon SDE Sheet
+</button>
+```
+
+Styled with Amazon orange to signal the different context.
+
+### Routing
+
+`src/main.jsx` checks `window.location.pathname` to decide which component to mount — no React Router library needed:
+
+```jsx
+const path = window.location.pathname;
+if (path === '/amazon') {
+  createRoot(document.getElementById('root')).render(<AmazonSDE />);
+} else {
+  createRoot(document.getElementById('root')).render(<App />);
+}
+```
+
+Vite's dev server serves `index.html` for all routes (already the default). In production, the same HTML file is served for any path.
+
+### New file — `src/AmazonSDE.jsx`
+
+Self-contained component. Fetches from `/api/amazon/problems` on mount. Manages 3-level nav state internally.
+
+**3-level navigation:**
+
+1. **Topic grid** — 14 cards in a CSS grid. Each card shows topic name and problem count. Amazon orange accent on hover/active. Clicking a card transitions to the problem list.
+
+2. **Problem list** — filtered by selected topic. Shows title + difficulty badge (color-coded: green Easy, orange Medium, red Hard). Back button returns to topic grid. Clicking a problem transitions to problem detail.
+
+3. **Problem detail** — fetches `GET /api/amazon/problem/:id`. Shows:
+   - Title + difficulty badge
+   - Problem statement
+   - Intuition / approach
+   - Time complexity + Space complexity
+   - Java code block (monospace, syntax-highlighted via inline styles)
+   - Back button returns to problem list
+
+**Visual identity:**
+
+| Property | Value |
+|----------|-------|
+| Background | `#0f1111` |
+| Card background | `#1a1a1a` |
+| Accent / orange | `#FF9900` |
+| Font | JetBrains Mono (loaded via Google Fonts `<link>` in index.html) |
+| Card hover | subtle `#FF9900` border glow |
+| Difficulty badges | Easy `#4CAF50`, Medium `#FF9900`, Hard `#f44336` |
+
+---
+
+## Solution Content
+
+Each problem's solution contains:
+- **statement** — clear problem description with constraints
+- **intuition** — the key insight and approach (3-5 sentences)
+- **time_complexity** — Big-O with brief explanation
+- **space_complexity** — Big-O with brief explanation
+- **code** — full runnable Java class with `main()` method containing test cases that print expected vs actual output
+
+Solutions are generated by Claude Code during implementation and stored in the DB via the seed script.
+
+---
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `server/db.js` | Add `amazon_problems` DDL; add `getAllAmazonProblems`, `getAmazonProblem`, `upsertAmazonSolution` |
+| `server/index.js` | Add `GET /api/amazon/problems` and `GET /api/amazon/problem/:id` |
+| `server/seed-amazon.js` | New file — seeds all ~150 problems and solutions into DB |
+| `src/main.jsx` | Add pathname check to route `/amazon` to `<AmazonSDE />` |
+| `src/AmazonSDE.jsx` | New file — full Amazon SDE Sheet UI |
+| `src/App.jsx` | Add "Amazon SDE Sheet" button on overview tab |
+| `index.html` | Add JetBrains Mono font link |
+
+---
+
+## Edge Cases
+
+| Case | Handling |
+|------|----------|
+| Problem has no solution yet | Detail view shows a loading/empty state — shouldn't occur post-seed |
+| `/amazon` route accessed before server starts | Fetch fails gracefully with an error message in the UI |
+| `resetAll()` called | `amazon_problems` table untouched — problems/solutions are permanent |
+| Same problem viewed twice | Second view loads from DB (no re-fetch of solution data beyond the API call, which hits SQLite directly) |
+
+---
+
+## Out of Scope
+
+- Logging Amazon problem completions into PrepQuest's XP/streak system
+- Filtering problems by difficulty across all topics
+- Search functionality
+- User notes or annotations on problems
