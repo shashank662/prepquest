@@ -386,6 +386,18 @@ function OverviewTab({ profile, dsa, sd, java, achSet, loadData }) {
           })}
         </div>
       </div>
+      <div style={{ ...S.card, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={S.sectionLabel}>Amazon SDE Sheet</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>147 problems · 14 topics · Java solutions</div>
+        </div>
+        <button
+          onClick={() => window.open('/amazon', '_blank')}
+          style={{ fontSize: 12, padding: '8px 14px', cursor: 'pointer', background: '#FF9900', border: 'none', borderRadius: 6, color: '#000', fontWeight: 600, fontFamily: 'var(--font-mono)' }}
+        >
+          Open ↗
+        </button>
+      </div>
     </div>
   );
 }
