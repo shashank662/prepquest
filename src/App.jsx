@@ -393,7 +393,7 @@ function OverviewTab({ profile, dsa, sd, java, achSet, loadData }) {
         </div>
         <button
           onClick={() => window.open('/amazon', '_blank')}
-          style={{ fontSize: 12, padding: '8px 14px', cursor: 'pointer', background: '#FF9900', border: 'none', borderRadius: 6, color: '#000', fontWeight: 600, fontFamily: 'var(--font-mono)' }}
+          style={{ fontSize: 12, padding: '8px 14px', cursor: 'pointer', background: '#FF9900', border: 'none', borderRadius: 'var(--border-radius-md)', color: '#000', fontWeight: 600, fontFamily: 'var(--font-mono)' }}
         >
           Open ↗
         </button>
