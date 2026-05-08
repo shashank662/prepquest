@@ -12,6 +12,8 @@ if (window.location.pathname.startsWith('/amazon')) {
         <AmazonSDE />
       </React.StrictMode>
     );
+  }).catch((err) => {
+    console.error('Failed to load AmazonSDE module:', err);
   });
 } else {
   root.render(
