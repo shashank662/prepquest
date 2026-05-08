@@ -1,6 +1,6 @@
 import express from 'express';
 import cors    from 'cors';
-import { db, getAll, saveProfile, upsertDSA, upsertSD, upsertJava, resetAll, upsertActivity, getActivity, insertEvent, getEventsForDate, deleteEventsForDate } from './db.js';
+import { db, getAll, saveProfile, upsertDSA, upsertSD, upsertJava, resetAll, upsertActivity, getActivity, insertEvent, getEventsForDate, deleteEventsForDate, getAllAmazonProblems, getAmazonProblem } from './db.js';
 
 const app  = express();
 const PORT = 3001;
@@ -121,6 +121,23 @@ app.get('/api/events', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET /api/amazon/problems
+app.get('/api/amazon/problems', (_req, res) => {
+  try { res.json(getAllAmazonProblems()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/amazon/problem/:id
+app.get('/api/amazon/problem/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'invalid id' });
+  try {
+    const row = getAmazonProblem(id);
+    if (!row) return res.status(404).json({ error: 'not found' });
+    res.json(row);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // POST /api/log
