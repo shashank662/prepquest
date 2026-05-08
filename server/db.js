@@ -205,10 +205,11 @@ export function getAmazonProblem(id) {
   ).get(id);
 }
 
-export function upsertAmazonSolution(id, statement, intuition, timeComplexity, spaceComplexity, code) {
+export function updateAmazonSolution(id, statement, intuition, timeComplexity, spaceComplexity, code) {
   db.prepare(`
     UPDATE amazon_problems
-    SET statement = ?, intuition = ?, time_complexity = ?, space_complexity = ?, code = ?
-    WHERE id = ?
-  `).run(statement, intuition, timeComplexity, spaceComplexity, code, id);
+    SET statement = @statement, intuition = @intuition,
+        time_complexity = @timeComplexity, space_complexity = @spaceComplexity, code = @code
+    WHERE id = @id
+  `).run({ id, statement, intuition, timeComplexity, spaceComplexity, code });
 }
