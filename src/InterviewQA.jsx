@@ -70,10 +70,18 @@ function Block({ b }) {
   }
 }
 
+// Search text for one question. Only html fields carry markup and entities; code/heading text is
+// raw, so a generic tag strip there would eat things like List<String>.
+const fromHtml = (h) => unescape(h.replace(/<\/?(b|em|code)>/g, ''));
+
 function plainText(q) {
   const parts = [q.id, q.title, q.tag || ''];
-  for (const b of q.blocks) parts.push(b.html || b.text || '', ...(b.items || []));
-  return parts.join(' ').replace(/<[^>]+>/g, '').toLowerCase();
+  for (const b of q.blocks) {
+    if (b.text) parts.push(b.text);
+    if (b.html) parts.push(fromHtml(b.html));
+    if (b.items) parts.push(...b.items.map(fromHtml));
+  }
+  return parts.join(' ').toLowerCase();
 }
 
 export default function InterviewQA() {
@@ -92,6 +100,8 @@ export default function InterviewQA() {
 function QA() {
   const [open,  setOpen]  = useState(() => new Set());
   const [query, setQuery] = useState('');
+  // While searching every match starts open; this tracks the ones closed by hand, per query.
+  const [closed, setClosed] = useState(() => new Set());
 
   const index = useMemo(
     () => data.sections.flatMap(s => s.questions.map(q => [q.id, plainText(q)])),
@@ -103,7 +113,11 @@ function QA() {
   const added = data.sections.reduce((n, s) => n + s.questions.filter(x => x.added).length, 0);
   const reviewed = data.sections.reduce((n, s) => n + s.questions.filter(x => x.review).length, 0);
 
-  const toggle = (id) => setOpen(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const flip = (set, id) => { const n = new Set(set); n.has(id) ? n.delete(id) : n.add(id); return n; };
+  const toggle = (id) => matches ? setClosed(prev => flip(prev, id)) : setOpen(prev => flip(prev, id));
+  const allIds = () => new Set(index.map(([id]) => id));
+  const expandAll = () => matches ? setClosed(new Set()) : setOpen(allIds());
+  const collapseAll = () => matches ? setClosed(allIds()) : setOpen(new Set());
 
   return (
     <div style={S.page}>
@@ -123,13 +137,13 @@ function QA() {
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
         <input
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={e => { setQuery(e.target.value); setClosed(new Set()); }}
           placeholder="Search questions and answers…"
           aria-label="Search questions and answers"
           style={{ flex: 1, minWidth: 180, fontFamily: 'var(--font-mono)', fontSize: 12, padding: '7px 10px', borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-secondary)', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', outline: 'none' }}
         />
-        <button style={S.btn} onClick={() => setOpen(new Set(index.map(([id]) => id)))}>Expand all</button>
-        <button style={S.btn} onClick={() => setOpen(new Set())}>Collapse all</button>
+        <button style={S.btn} onClick={expandAll}>Expand all</button>
+        <button style={S.btn} onClick={collapseAll}>Collapse all</button>
       </div>
 
       {data.sections.map(sec => {
@@ -144,7 +158,7 @@ function QA() {
             </div>
             {sec.note && <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10 }}><Rich html={sec.note} /></div>}
             {qs.map(item => {
-              const isOpen = open.has(item.id) || !!matches;
+              const isOpen = matches ? !closed.has(item.id) : open.has(item.id);
               return (
                 <div key={item.id} style={{ ...S.card, padding: 0, overflow: 'hidden', marginBottom: 8 }}>
                   <button
