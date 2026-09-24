@@ -19,7 +19,8 @@ const DIFF = {
 };
 
 function parseHash() {
-  const h = decodeURIComponent(window.location.hash.replace(/^#\/?/, ''));
+  let h = window.location.hash.replace(/^#\/?/, '');
+  try { h = decodeURIComponent(h); } catch { return { view: 'modules' }; }   // malformed link
   if (h.startsWith('m/')) return { view: 'module', module: h.slice(2) };
   if (h.startsWith('p/')) return { view: 'problem', id: parseInt(h.slice(2), 10) };
   return { view: 'modules' };
@@ -114,8 +115,8 @@ export default function StriverSheet() {
             </div>
           </div>
         )}
-        {meta && !detail && !detailErr && <div style={{ ...S.card, color: 'var(--color-text-tertiary)' }}>Loading solution…</div>}
-        {detail && (
+        {meta && detail?.id !== route.id && !detailErr && <div style={{ ...S.card, color: 'var(--color-text-tertiary)' }}>Loading solution…</div>}
+        {detail && detail.id === route.id && (
           <>
             <div style={S.card}><div style={S.label}>Problem</div><div style={S.prose}>{detail.statement || '—'}</div></div>
             <div style={S.card}><div style={S.label}>Intuition</div><div style={S.prose}>{detail.intuition || '—'}</div></div>

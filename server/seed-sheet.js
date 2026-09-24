@@ -14,7 +14,7 @@
 
 import fs   from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { db } from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,7 +25,7 @@ const meta = JSON.parse(fs.readFileSync(path.join(SHEET_DIR, 'striver180.meta.js
 const solutions = {};
 const files = fs.readdirSync(SHEET_DIR).filter(f => /^solutions-.*\.js$/.test(f)).sort();
 for (const f of files) {
-  const mod = await import(path.join(SHEET_DIR, f));
+  const mod = await import(pathToFileURL(path.join(SHEET_DIR, f)).href);
   for (const [slug, sol] of Object.entries(mod.default)) {
     if (solutions[slug]) throw new Error(`Duplicate solution for "${slug}" in ${f}`);
     solutions[slug] = sol;

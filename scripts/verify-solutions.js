@@ -13,7 +13,7 @@ import os   from 'os';
 import path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const run = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -22,7 +22,7 @@ const filter    = process.argv[2];
 
 const solutions = [];
 for (const f of fs.readdirSync(SHEET_DIR).filter(f => /^solutions-.*\.js$/.test(f)).sort()) {
-  const mod = await import(path.join(SHEET_DIR, f));
+  const mod = await import(pathToFileURL(path.join(SHEET_DIR, f)).href);
   for (const [slug, sol] of Object.entries(mod.default))
     if (!filter || slug.includes(filter)) solutions.push({ slug, file: f, ...sol });
 }
