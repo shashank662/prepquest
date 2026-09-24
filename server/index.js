@@ -1,9 +1,14 @@
 import express from 'express';
 import cors    from 'cors';
-import { db, getAll, saveProfile, upsertDSA, upsertSD, upsertJava, resetAll, upsertActivity, getActivity, insertEvent, getEventsForDate, deleteEventsForDate, getAllAmazonProblems, getAmazonProblem } from './db.js';
+import fs      from 'fs';
+import path    from 'path';
+import { fileURLToPath } from 'url';
+import { db, getAll, saveProfile, upsertDSA, upsertSD, upsertJava, resetAll, upsertActivity, getActivity, insertEvent, getEventsForDate, deleteEventsForDate, getAllSheetProblems, getSheetProblem } from './db.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app  = express();
-const PORT = 3001;
+// Dev: always 3001 (vite.config.js proxies /api there). Production (npm start): the host's PORT.
+const PORT = (process.env.NODE_ENV === 'production' && parseInt(process.env.PORT, 10)) || 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -76,6 +81,20 @@ function yesterdayStr() {
   return localDateStr(d);
 }
 
+// Longest run of consecutive dates in a DESC-sorted list of YYYY-MM-DD strings.
+function longestStreak(datesDesc) {
+  let best = 0, run = 0;
+  for (let i = 0; i < datesDesc.length; i++) {
+    if (i > 0) {
+      const prev = new Date(datesDesc[i - 1] + 'T12:00:00');
+      const cur  = new Date(datesDesc[i]     + 'T12:00:00');
+      run = Math.round((prev - cur) / 86400000) === 1 ? run + 1 : 1;
+    } else run = 1;
+    best = Math.max(best, run);
+  }
+  return best;
+}
+
 function applyStreak(profile) {
   const today     = todayStr();
   const yesterday = yesterdayStr();
@@ -123,18 +142,18 @@ app.get('/api/events', (req, res) => {
   }
 });
 
-// GET /api/amazon/problems
-app.get('/api/amazon/problems', (_req, res) => {
-  try { res.json(getAllAmazonProblems()); }
+// GET /api/sheet/problems
+app.get('/api/sheet/problems', (_req, res) => {
+  try { res.json(getAllSheetProblems()); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /api/amazon/problem/:id
-app.get('/api/amazon/problem/:id', (req, res) => {
+// GET /api/sheet/problem/:id
+app.get('/api/sheet/problem/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'invalid id' });
   try {
-    const row = getAmazonProblem(id);
+    const row = getSheetProblem(id);
     if (!row) return res.status(404).json({ error: 'not found' });
     res.json(row);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -144,6 +163,9 @@ app.get('/api/amazon/problem/:id', (req, res) => {
 app.post('/api/log', (req, res) => {
   const { type, topic, difficulty } = req.body;
   if (!type || !topic) return res.status(400).json({ error: 'type and topic required' });
+  const validTopics = { dsa: DSA_TOPICS, sd: SD_TOPICS, java: JAVA_TOPICS }[type];
+  if (!validTopics) return res.status(400).json({ error: 'invalid type' });
+  if (!validTopics.includes(topic)) return res.status(400).json({ error: 'invalid topic' });
 
   try {
     let { profile, dsa, sd, java } = getAll();
@@ -190,7 +212,7 @@ app.post('/api/log', (req, res) => {
     saveProfile(finalProfile);
     upsertActivity(todayStr(), profile.xp - originalXp);
     const xpForEvent = type === 'dsa' ? XP_EARN[difficulty] : XP_EARN[type];
-    insertEvent(todayStr(), type, topic, difficulty ?? null, xpForEvent);
+    insertEvent(todayStr(), type, topic, type === 'dsa' ? difficulty : null, xpForEvent);
 
     res.json({ profile: finalProfile, dsa, sd, java, msg, newAchievements: earned });
   } catch (err) {
@@ -247,21 +269,10 @@ app.post('/api/reset-day', (req, res) => {
         java = { ...java, [topic]: newCount };
       }
 
-      // 5. Re-evaluate achievements AFTER topic state is updated
-      const updatedAchs = (profile.achievements || []).filter(id => {
-        const ach = ACHIEVEMENTS.find(a => a.id === id);
-        if (!ach) return false;
-        if (ach.cond(profile, dsa)) return true;
-        // Achievement no longer met — revoke and subtract its XP bonus
-        profile = { ...profile, xp: Math.max(0, profile.xp - ach.xpBonus) };
-        return false;
-      });
-      profile = { ...profile, achievements: updatedAchs };
-
-      // 6. Delete activity_log entry for that date
+      // 5. Delete activity_log entry for that date
       db.prepare('DELETE FROM activity_log WHERE date = ?').run(date);
 
-      // 7. Recompute streak from remaining activity_log
+      // 6. Recompute streak from remaining activity_log
       const remaining = db.prepare(
         'SELECT date FROM activity_log WHERE xp > 0 ORDER BY date DESC'
       ).all();
@@ -279,6 +290,20 @@ app.post('/api/reset-day', (req, res) => {
         }
         profile = { ...profile, streak };
       }
+
+      // 7. Re-evaluate achievements AFTER topic state and streak are updated.
+      //    Streak achievements are judged on the longest streak ever reached, not the
+      //    current one, so a streak that ended naturally doesn't revoke them.
+      const bestStreak = longestStreak(remaining.map(r => r.date));
+      const updatedAchs = (profile.achievements || []).filter(id => {
+        const ach = ACHIEVEMENTS.find(a => a.id === id);
+        if (!ach) return false;
+        if (ach.cond({ ...profile, streak: bestStreak }, dsa)) return true;
+        // Achievement no longer met — revoke and subtract its XP bonus
+        profile = { ...profile, xp: Math.max(0, profile.xp - ach.xpBonus) };
+        return false;
+      });
+      profile = { ...profile, achievements: updatedAchs };
 
       // 8. Delete activity_events for that date
       deleteEventsForDate(date);
@@ -305,6 +330,13 @@ app.post('/api/reset', (_req, res) => {
   try { resetAll(); res.json(getAll()); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// In production (after `npm run build`) serve the built frontend from the same port.
+const DIST = path.join(__dirname, '../dist');
+if (fs.existsSync(DIST)) {
+  app.use(express.static(DIST));
+  app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(path.join(DIST, 'index.html')));
+}
 
 app.listen(PORT, () => {
   console.log(`PrepQuest API running on http://localhost:${PORT}`);

@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "concurrently \"node server/index.js\" \"vite --host\"",
     "server": "node server/index.js",
+    "start": "NODE_ENV=production node server/index.js",
+    "seed": "node server/seed-sheet.js",
+    "verify": "node scripts/verify-solutions.js",
     "build": "vite build",
     "preview": "vite preview"
   },

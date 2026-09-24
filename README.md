@@ -26,7 +26,10 @@ cd prepquest
 # 2. Install all dependencies
 npm install
 
-# 3. Start everything (API server + Vite dev server)
+# 3. Load the Striver's 180 sheet into the database (safe to re-run; progress is untouched)
+npm run seed
+
+# 4. Start everything (API server + Vite dev server)
 npm run dev
 ```
 
@@ -42,8 +45,13 @@ prepquest/
   server/
     index.js     ← Express API (port 3001) — all game logic lives here
     db.js        ← SQLite queries (better-sqlite3)
+    seed-sheet.js← loads server/sheet/* into the sheet_problems table
+    sheet/       ← Striver's 180: problem list from TUF + solutions (statement, intuition, Java)
+  scripts/
+    verify-solutions.js ← compiles + runs every Java solution and checks its output (needs a JDK)
   src/
     App.jsx      ← React frontend — fetches /api/* endpoints
+    StriverSheet.jsx ← the sheet, served at /sheet
     index.css    ← CSS variables (light + dark mode)
     main.jsx     ← React entry point
   prepquest.db   ← created automatically on first run
@@ -54,6 +62,11 @@ prepquest/
 - `GET  /api/data`  — fetch all current state
 - `POST /api/log`   — log an activity `{ type, topic, difficulty? }`
 - `POST /api/reset` — wipe all progress
+- `GET  /api/sheet/problems`, `GET /api/sheet/problem/:id` — Striver's 180 sheet
+
+**Other scripts:**
+- `npm run verify` — compile and run all 179 Java solutions, checking each `// expected` output
+- `npm run build && npm start` — production: one server on `$PORT` serving the API and the built app
 
 ---
 

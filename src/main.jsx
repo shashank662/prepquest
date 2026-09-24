@@ -5,15 +5,18 @@ import './index.css'
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
-if (window.location.pathname.startsWith('/amazon')) {
-  import('./AmazonSDE.jsx').then(({ default: AmazonSDE }) => {
+const path = window.location.pathname;
+if (path.startsWith('/amazon')) window.history.replaceState(null, '', '/sheet');   // old bookmark
+
+if (path.startsWith('/sheet') || path.startsWith('/amazon')) {
+  import('./StriverSheet.jsx').then(({ default: StriverSheet }) => {
     root.render(
       <React.StrictMode>
-        <AmazonSDE />
+        <StriverSheet />
       </React.StrictMode>
     );
   }).catch((err) => {
-    console.error('Failed to load AmazonSDE module:', err);
+    console.error('Failed to load StriverSheet module:', err);
   });
 } else {
   root.render(
