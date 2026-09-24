@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useId } from "react";
 
+// The Q&A data (src/qa/java-spring.json) is gitignored, so only show its card when the file
+// exists. A lazy glob just checks presence; the JSON itself stays out of this bundle.
+const HAS_QA = Object.keys(import.meta.glob("./qa/java-spring.json")).length > 0;
+
 const DSA_TOPICS = [
   "Arrays & Hashing", "Two Pointers", "Sliding Window", "Stack",
   "Binary Search", "Linked Lists", "Trees", "Tries",
@@ -403,6 +407,18 @@ function OverviewTab({ profile, dsa, sd, java, achSet, loadData }) {
           Open ↗
         </button>
       </div>
+      {HAS_QA && <div style={{ ...S.card, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={S.sectionLabel}>Java + Spring Boot Q&amp;A</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Interview questions · say-this answers · follow-ups</div>
+        </div>
+        <button
+          onClick={() => window.open('/qa', '_blank')}
+          style={{ fontSize: 12, padding: '8px 14px', cursor: 'pointer', background: 'var(--color-background-info)', color: 'var(--color-text-info)', border: '0.5px solid var(--color-border-info)', borderRadius: 'var(--border-radius-md)', fontWeight: 500, fontFamily: 'var(--font-mono)' }}
+        >
+          Open ↗
+        </button>
+      </div>}
     </div>
   );
 }
