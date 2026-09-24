@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH   = path.join(__dirname, '../prepquest.db');
+const DB_PATH   = process.env.PREPQUEST_DB || path.join(__dirname, '../prepquest.db');
 
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
@@ -54,15 +54,48 @@ db.exec(`
     difficulty TEXT,
     xp_earned  INTEGER NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS sheet_problems (
+    id               INTEGER PRIMARY KEY,
+    slug             TEXT NOT NULL UNIQUE,
+    title            TEXT NOT NULL,
+    module           TEXT NOT NULL,
+    pattern          TEXT NOT NULL,
+    tier             TEXT NOT NULL,
+    difficulty       TEXT NOT NULL,
+    leetcode_url     TEXT,
+    tuf_url          TEXT,
+    article_url      TEXT,
+    statement        TEXT,
+    intuition        TEXT,
+    time_complexity  TEXT,
+    space_complexity TEXT,
+    code             TEXT
+  );
 `);
 
+// Older versions stored the modal's leftover difficulty on SD/Java events.
+db.prepare("UPDATE activity_events SET difficulty = NULL WHERE type != 'dsa' AND difficulty IS NOT NULL").run();
+
 export { db };
+
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// A stored streak is only still alive if the last activity was today or yesterday.
+function liveStreak(streak, lastDate) {
+  if (!lastDate) return 0;
+  const today = new Date();
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+  return lastDate === localDateStr(today) || lastDate === localDateStr(yesterday) ? streak : 0;
+}
 
 export function getAll() {
   const row = db.prepare('SELECT * FROM profile WHERE id = 1').get();
   const profile = {
     xp:           row.xp,
-    streak:       row.streak,
+    streak:       liveStreak(row.streak, row.last_date),
     lastDate:     row.last_date,
     easy:         row.easy,
     medium:       row.medium,
@@ -130,9 +163,6 @@ export function upsertActivity(date, xp) {
 
 export function getActivity(days) {
   if (!Number.isInteger(days) || days < 1) return [];
-  function localDateStr(d) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
   const start = (() => {
     const d = new Date();
     d.setDate(d.getDate() - days + 1);
@@ -178,4 +208,15 @@ export function getEventsForDate(date) {
 
 export function deleteEventsForDate(date) {
   db.prepare('DELETE FROM activity_events WHERE date = ?').run(date);
+}
+
+export function getAllSheetProblems() {
+  return db.prepare(
+    `SELECT id, slug, title, module, pattern, tier, difficulty, leetcode_url, tuf_url, article_url
+     FROM sheet_problems ORDER BY id ASC`
+  ).all();
+}
+
+export function getSheetProblem(id) {
+  return db.prepare('SELECT * FROM sheet_problems WHERE id = ?').get(id);
 }

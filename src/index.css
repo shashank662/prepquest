@@ -140,3 +140,7 @@ select {
   0%, 100% { opacity: 1;   transform: scale(1);    }
   50%       { opacity: 0.6; transform: scale(1.25); }
 }
+
+/* ── Striver sheet ────────────────────────────────────────── */
+.sheet-row:hover  { background: var(--color-background-secondary); }
+.sheet-card:hover { border-color: var(--color-border-secondary) !important; }

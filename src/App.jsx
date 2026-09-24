@@ -155,9 +155,14 @@ export default function App() {
 
   async function resetData() {
     if (!window.confirm('Reset ALL progress? This cannot be undone.')) return;
-    const res = await fetch('/api/reset', { method: 'POST' });
-    setData(await res.json());
-    showToast('Progress reset.');
+    try {
+      const res = await fetch('/api/reset', { method: 'POST' });
+      if (!res.ok) throw new Error();
+      setData(await res.json());
+      showToast('Progress reset.');
+    } catch {
+      showToast('Reset failed — is the server running?');
+    }
   }
 
   if (loading) return <Centered>Loading...</Centered>;
@@ -385,6 +390,18 @@ function OverviewTab({ profile, dsa, sd, java, achSet, loadData }) {
             );
           })}
         </div>
+      </div>
+      <div style={{ ...S.card, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={S.sectionLabel}>Striver's 180 Sheet</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>179 problems · 17 modules · Java solutions</div>
+        </div>
+        <button
+          onClick={() => window.open('/sheet', '_blank')}
+          style={{ fontSize: 12, padding: '8px 14px', cursor: 'pointer', background: 'var(--color-background-info)', color: 'var(--color-text-info)', border: '0.5px solid var(--color-border-info)', borderRadius: 'var(--border-radius-md)', fontWeight: 500, fontFamily: 'var(--font-mono)' }}
+        >
+          Open ↗
+        </button>
       </div>
     </div>
   );
